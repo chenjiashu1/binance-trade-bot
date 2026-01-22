@@ -9,6 +9,7 @@ from flask_socketio import SocketIO, emit
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .binance_api_manager import BinanceAPIManager
 from .config import Config
 from .database import Database
 from .logger import Logger
@@ -23,6 +24,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 logger = Logger("api_server")
 config = Config()
 db = Database(logger, config)
+manager = BinanceAPIManager(config, db, logger, config.TESTNET)
 
 
 def filter_period(query, model):  # pylint: disable=inconsistent-return-statements
@@ -142,6 +144,55 @@ def pairs():
     with db.db_session() as session:
         all_pairs: List[Pair] = session.query(Pair).all()
         return jsonify([pair.info() for pair in all_pairs])
+
+
+@app.route("/api/balance")
+@app.route("/api/balance/<coin>")
+def balance(coin: str = None):
+    """
+    Get balance of a specific coin or all coins
+    
+    GET /api/balance - Get balance of all coins
+    GET /api/balance/<coin> - Get balance of a specific coin
+    """
+    try:
+        if coin:
+            # Get balance of a specific coin
+            balance = manager.get_currency_balance(coin.upper())
+            return jsonify({
+                "coin": coin.upper(),
+                "balance": balance,
+                "success": True
+            })
+        else:
+            # Get balance of all supported coins
+            session: Session
+            with db.db_session() as session:
+                coins: List[Coin] = session.query(Coin).filter(Coin.enabled).all()
+                
+                balances = {}
+                for coin_obj in coins:
+                    balance = manager.get_currency_balance(coin_obj.symbol)
+                    if balance > 0:
+                        balances[coin_obj.symbol] = balance
+                
+                # Also include bridge coin balance
+                bridge_balance = manager.get_currency_balance(config.BRIDGE.symbol)
+                if bridge_balance > 0:
+                    balances[config.BRIDGE.symbol] = bridge_balance
+                
+                return jsonify({
+                    "balances": balances,
+                    "total_coins": len(balances),
+                    "success": True
+                })
+                
+    except Exception as e:
+        logger.error(f"Error getting balance: {e}")
+        return jsonify({
+            "error": str(e),
+            "success": False
+        }), 500
 
 
 @socketio.on("update", namespace="/backend")
