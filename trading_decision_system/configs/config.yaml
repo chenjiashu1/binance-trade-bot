@@ -1,0 +1,126 @@
+# 多模型数字货币智能决策系统配置文件
+
+# 交易所配置
+exchange:
+  name: "binance"
+  api_key: "OkMKlKwxpaR63fcMbG1HTLcR7i0IYBYZvgIYUqnENaRVG8Zs6bBr2awDckiSM5Ki"
+  secret: "elxxuAiv9uo8VRCeKM8lCeUGzAO6RW658iEY2QKLE6imngTMlIcgL4LQ0VD6sRXx"
+  symbols:
+    - "BTCUSDT"
+    - "SOLUSDT"
+    - "ETHUSDT"
+    - "ADAUSDT"
+    - "XRPUSDT"
+  timeframes:
+    - "1h"
+    - "4h"
+    - "1d"
+  testnet: false
+
+# LLM模型配置
+models:
+  deepseek:
+    api_key: "sk-ad510e9560454dcc977de24bc3fac065"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_name: "deepseek-r1"
+    role: "strategist"
+    weight: 0.4
+    enabled: true
+    
+  qwen:
+    api_key: "sk-ad510e9560454dcc977de24bc3fac065"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_name: "qwen3-max"
+    role: "technical"
+    weight: 0.3
+    enabled: true
+
+  gpt4:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "https://api.openai.com/v1"
+    model_name: "gpt-4"
+    role: "risk_assessor"
+    weight: 0.3
+    enabled: false
+
+# 分析配置
+analysis:
+  schedule:
+    - time: "23:00"
+      type: "strategic"
+      enabled: true
+    - time: "05:00"
+      type: "strategic"
+      enabled: true
+    - time: "*:00"
+      type: "technical"
+      enabled: true
+  
+  risk_limits:
+    max_position_percent: 20
+    max_daily_loss: 5
+    stop_loss_default: 2
+    risk_free_rate: 0.02
+
+  indicators:
+    - name: "RSI"
+      enabled: true
+      parameters:
+        period: 14
+        oversold: 30
+        overbought: 70
+    
+    - name: "MACD"
+      enabled: true
+      parameters:
+        fast_period: 12
+        slow_period: 26
+        signal_period: 9
+    
+    - name: "MA"
+      enabled: true
+      parameters:
+        periods: [20, 50, 200]
+
+# 输出配置
+output:
+  format: "json"
+  save_to_file: true
+  file_path: "./trading_decision_system/logs/decisions/"
+  
+  notifications:
+    email:
+      enabled: false
+      smtp_server: "smtp.gmail.com"
+      smtp_port: 587
+      sender_email: "${EMAIL_USER}"
+      sender_password: "${EMAIL_PASSWORD}"
+      recipient_email: "your-email@example.com"
+    
+    telegram:
+      enabled: false
+      bot_token: "${TELEGRAM_BOT_TOKEN}"
+      chat_id: "${TELEGRAM_CHAT_ID}"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_path: "./trading_decision_system/logs/system.log"
+  max_file_size: 10485760
+  backup_count: 5
+
+# 数据存储配置
+data_storage:
+  type: "sqlite"
+  path: "./trading_decision_system/data/trading_data.db"
+  backup_enabled: true
+  backup_interval_hours: 24
+
+# 回测配置
+backtest:
+  enabled: false
+  start_date: "2024-01-01"
+  end_date: "2024-06-30"
+  initial_capital: 10000.0
+  commission_fee: 0.001

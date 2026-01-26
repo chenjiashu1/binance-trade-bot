@@ -1,0 +1,464 @@
+{
+  "analysis_time": "2026-01-26 11:39:23",
+  "symbol": "SOLUSDT",
+  "analysis_type": "strategist",
+  "market_data": {
+    "current_price": 121.38,
+    "price_change_24h": -4.055,
+    "indicators_1h": {
+      "rsi": {
+        "value": 31.74,
+        "status": "neutral"
+      },
+      "macd": {
+        "macd": -1.6092,
+        "signal": -1.7113,
+        "histogram": 0.1021,
+        "crossover": "bullish"
+      },
+      "ma": {
+        "ma20": 122.8425,
+        "ma50": 125.4656,
+        "ma200": NaN
+      },
+      "bollinger": {
+        "upper": 129.6768,
+        "middle": 122.8425,
+        "lower": 116.0082,
+        "position": "inside"
+      },
+      "atr": 1.8264,
+      "trend": {
+        "trend": "down",
+        "strength": 26.86,
+        "ma_short": 122.8425,
+        "ma_long": 125.4656,
+        "current_price": 121.38,
+        "ma_crossover": "death"
+      },
+      "volume": {
+        "total_volume": 4716284.7930000005,
+        "avg_volume": 235814.23965000003,
+        "max_volume": 959971.677,
+        "min_volume": 17769.408,
+        "volume_trend": 0.46924280098882976,
+        "volume_ratio": 1.0
+      },
+      "price_stats": {
+        "current": 121.38,
+        "open": 122.03,
+        "high": 127.2,
+        "low": 117.15,
+        "change_24h": -4.15
+      }
+    },
+    "indicators_4h": {
+      "rsi": {
+        "value": 29.22,
+        "status": "oversold"
+      },
+      "macd": {
+        "macd": -2.4842,
+        "signal": -1.9313,
+        "histogram": -0.5529,
+        "crossover": "none"
+      },
+      "ma": {
+        "ma20": 126.166,
+        "ma50": 130.2832,
+        "ma200": NaN
+      },
+      "bollinger": {
+        "upper": 132.2854,
+        "middle": 126.166,
+        "lower": 120.0466,
+        "position": "inside"
+      },
+      "atr": 1.8393,
+      "trend": {
+        "trend": "down",
+        "strength": 50.57,
+        "ma_short": 126.166,
+        "ma_long": 130.2832,
+        "current_price": 121.38,
+        "ma_crossover": "death"
+      },
+      "volume": {
+        "total_volume": 8090923.119,
+        "avg_volume": 404546.15595,
+        "max_volume": 2305430.152,
+        "min_volume": 112120.242,
+        "volume_trend": 0.5300994219616179,
+        "volume_ratio": 1.0
+      },
+      "price_stats": {
+        "current": 121.38,
+        "open": 118.85,
+        "high": 130.2,
+        "low": 117.15,
+        "change_24h": -6.52
+      }
+    },
+    "indicators_1d": {
+      "rsi": {
+        "value": 32.27,
+        "status": "neutral"
+      },
+      "macd": {
+        "macd": -2.3172,
+        "signal": 0.172,
+        "histogram": -2.4892,
+        "crossover": "none"
+      },
+      "ma": {
+        "ma20": 134.9345,
+        "ma50": NaN,
+        "ma200": NaN
+      },
+      "bollinger": {
+        "upper": 151.2379,
+        "middle": 134.9345,
+        "lower": 118.6311,
+        "position": "inside"
+      },
+      "atr": 6.0664,
+      "trend": {
+        "trend": "sideways",
+        "strength": 0,
+        "ma_short": 134.9345,
+        "ma_long": NaN,
+        "current_price": 121.38,
+        "ma_crossover": "none"
+      },
+      "volume": {
+        "total_volume": 50877160.712000005,
+        "avg_volume": 2543858.0356,
+        "max_volume": 4540879.449,
+        "min_volume": 456252.939,
+        "volume_trend": 0.2848671967998097,
+        "volume_ratio": 1.0000000000000002
+      },
+      "price_stats": {
+        "current": 121.38,
+        "open": 118.85,
+        "high": 148.74,
+        "low": 117.15,
+        "change_24h": -8.24
+      }
+    }
+  },
+  "account_info": {
+    "timestamp": 1769398743853,
+    "datetime": "2026-01-26 11:39:03",
+    "account_info": {
+      "maker_commission": 10,
+      "taker_commission": 10,
+      "buyer_commission": 0,
+      "seller_commission": 0,
+      "can_trade": true,
+      "can_withdraw": true,
+      "can_deposit": true,
+      "update_time": 1768988789736
+    },
+    "balances": {
+      "SOL": 0.085914
+    },
+    "asset_usdt": {
+      "SOL": 10.42824132,
+      "total": 10.42824132
+    },
+    "total_assets_usdt": 10.43,
+    "trade_statistics": {
+      "total_trades": 2,
+      "win_trades": 2,
+      "loss_trades": 0,
+      "win_rate": 100.0,
+      "total_profit": 0.1097,
+      "total_loss": 0,
+      "profit_factor": 0,
+      "avg_profit": 0.0549,
+      "max_win": 0.0842,
+      "max_loss": 0.0255,
+      "consecutive_wins": 2,
+      "consecutive_losses": 0,
+      "statistics_period": "last 30 days"
+    },
+    "asset_distribution": {
+      "SOL": 100.0
+    }
+  },
+  "model_analyses": {
+    "deepseek": {
+      "symbol": "SOLUSDT",
+      "analysis_time": "2026-01-26 11:39:23",
+      "trend_analysis": {
+        "short_term_trend": "sideways",
+        "short_term_strength": 10,
+        "medium_term_trend": "sideways",
+        "medium_term_strength": 10,
+        "trend_confidence": 15
+      },
+      "key_levels": {
+        "support_levels": [
+          115.0,
+          110.0
+        ],
+        "resistance_levels": [
+          125.0,
+          130.0
+        ],
+        "breakout_level": 130.0
+      },
+      "risk_reward": {
+        "upside_potential": "7.0%",
+        "downside_risk": "5.0%",
+        "risk_reward_ratio": 1.4
+      },
+      "position_sizing": {
+        "recommended_position_percent": 0,
+        "max_stop_loss_usdt": 0.52,
+        "add_position_condition": "突破130.0且成交量放大200%",
+        "reduce_position_condition": "跌破115.0且RSI<30"
+      },
+      "entry_timing": {
+        "ideal_entry_range": "118.0-120.0",
+        "confirmation_signals": [
+          "MACD金叉",
+          "成交量突破20日均量"
+        ],
+        "avoid_entry_conditions": [
+          "RSI>70超买",
+          "价格跌破110强支撑"
+        ]
+      },
+      "overall_bias": "neutral",
+      "confidence_score": 30,
+      "rationale": "技术指标全零值导致分析可靠性严重受限。当前价格处于震荡区间，趋势强度微弱。账户余额不足且总资产规模极小，建议保持空仓观望。关键支撑/阻力位基于历史价格波动区间设定。需等待有效技术信号及成交量配合方可考虑入场，严格控制仓位在5%以内，止损设置不超过总资金5%。",
+      "model_name": "deepseek",
+      "role": "strategist",
+      "response_time_seconds": 19.59
+    },
+    "qwen": {
+      "symbol": "SOLUSDT",
+      "analysis_time": "2026-01-26 11:39:19",
+      "trend_analysis": {
+        "short_term_trend": "sideways",
+        "short_term_strength": 30,
+        "medium_term_trend": "sideways",
+        "medium_term_strength": 25,
+        "trend_confidence": 40
+      },
+      "key_levels": {
+        "support_levels": [
+          118.5,
+          115.0
+        ],
+        "resistance_levels": [
+          124.0,
+          127.5
+        ],
+        "breakout_level": 127.5
+      },
+      "risk_reward": {
+        "upside_potential": "5.0%",
+        "downside_risk": "5.0%",
+        "risk_reward_ratio": 1.0
+      },
+      "position_sizing": {
+        "recommended_position_percent": 20,
+        "max_stop_loss_usdt": 0.52,
+        "add_position_condition": "价格突破127.5且成交量放大，RSI > 60",
+        "reduce_position_condition": "价格跌破118.5或RSI < 40"
+      },
+      "entry_timing": {
+        "ideal_entry_range": "119.0 - 121.5",
+        "confirmation_signals": [
+          "RSI从50向上拐头",
+          "MACD出现正向柱状图"
+        ],
+        "avoid_entry_conditions": [
+          "ATR仍为0（数据缺失）",
+          "趋势强度低于20%"
+        ]
+      },
+      "overall_bias": "neutral",
+      "confidence_score": 45,
+      "rationale": "当前市场处于无明显方向的盘整状态，技术指标均呈中性且缺乏有效数值（如MA、布林带、ATR为0），表明数据不完整或市场极度平静。24小时跌幅-4.05%但趋势强度为0%，暗示波动未形成持续动能。建议轻仓观望，等待明确信号。",
+      "model_name": "qwen",
+      "role": "strategist",
+      "response_time_seconds": 15.68
+    }
+  },
+  "final_decision": {
+    "timestamp": 1769398763447,
+    "datetime": "2026-01-26 11:39:23",
+    "symbol": "SOLUSDT",
+    "final_decision": {
+      "action": "wait",
+      "bias": "neutral",
+      "recommended_position_size_percent": 8.57,
+      "recommended_position_value_usdt": 0.89,
+      "entry_price": 119.5357,
+      "stop_loss": 0,
+      "take_profit_levels": [],
+      "confidence_score": 36.43
+    },
+    "model_consensus": {
+      "agreement_level": "high",
+      "agreement_score": 100.0,
+      "bias_distribution": {
+        "bullish": 0,
+        "bearish": 0,
+        "neutral": 2
+      },
+      "avg_confidence": 37.5,
+      "conflicting_points": [],
+      "models_count": 2,
+      "details": {
+        "deepseek": {
+          "symbol": "SOLUSDT",
+          "analysis_time": "2026-01-26 11:39:23",
+          "trend_analysis": {
+            "short_term_trend": "sideways",
+            "short_term_strength": 10,
+            "medium_term_trend": "sideways",
+            "medium_term_strength": 10,
+            "trend_confidence": 15
+          },
+          "key_levels": {
+            "support_levels": [
+              115.0,
+              110.0
+            ],
+            "resistance_levels": [
+              125.0,
+              130.0
+            ],
+            "breakout_level": 130.0
+          },
+          "risk_reward": {
+            "upside_potential": "7.0%",
+            "downside_risk": "5.0%",
+            "risk_reward_ratio": 1.4
+          },
+          "position_sizing": {
+            "recommended_position_percent": 0,
+            "max_stop_loss_usdt": 0.52,
+            "add_position_condition": "突破130.0且成交量放大200%",
+            "reduce_position_condition": "跌破115.0且RSI<30"
+          },
+          "entry_timing": {
+            "ideal_entry_range": "118.0-120.0",
+            "confirmation_signals": [
+              "MACD金叉",
+              "成交量突破20日均量"
+            ],
+            "avoid_entry_conditions": [
+              "RSI>70超买",
+              "价格跌破110强支撑"
+            ]
+          },
+          "overall_bias": "neutral",
+          "confidence_score": 30,
+          "rationale": "技术指标全零值导致分析可靠性严重受限。当前价格处于震荡区间，趋势强度微弱。账户余额不足且总资产规模极小，建议保持空仓观望。关键支撑/阻力位基于历史价格波动区间设定。需等待有效技术信号及成交量配合方可考虑入场，严格控制仓位在5%以内，止损设置不超过总资金5%。",
+          "model_name": "deepseek",
+          "role": "strategist",
+          "response_time_seconds": 19.59
+        },
+        "qwen": {
+          "symbol": "SOLUSDT",
+          "analysis_time": "2026-01-26 11:39:19",
+          "trend_analysis": {
+            "short_term_trend": "sideways",
+            "short_term_strength": 30,
+            "medium_term_trend": "sideways",
+            "medium_term_strength": 25,
+            "trend_confidence": 40
+          },
+          "key_levels": {
+            "support_levels": [
+              118.5,
+              115.0
+            ],
+            "resistance_levels": [
+              124.0,
+              127.5
+            ],
+            "breakout_level": 127.5
+          },
+          "risk_reward": {
+            "upside_potential": "5.0%",
+            "downside_risk": "5.0%",
+            "risk_reward_ratio": 1.0
+          },
+          "position_sizing": {
+            "recommended_position_percent": 20,
+            "max_stop_loss_usdt": 0.52,
+            "add_position_condition": "价格突破127.5且成交量放大，RSI > 60",
+            "reduce_position_condition": "价格跌破118.5或RSI < 40"
+          },
+          "entry_timing": {
+            "ideal_entry_range": "119.0 - 121.5",
+            "confirmation_signals": [
+              "RSI从50向上拐头",
+              "MACD出现正向柱状图"
+            ],
+            "avoid_entry_conditions": [
+              "ATR仍为0（数据缺失）",
+              "趋势强度低于20%"
+            ]
+          },
+          "overall_bias": "neutral",
+          "confidence_score": 45,
+          "rationale": "当前市场处于无明显方向的盘整状态，技术指标均呈中性且缺乏有效数值（如MA、布林带、ATR为0），表明数据不完整或市场极度平静。24小时跌幅-4.05%但趋势强度为0%，暗示波动未形成持续动能。建议轻仓观望，等待明确信号。",
+          "model_name": "qwen",
+          "role": "strategist",
+          "response_time_seconds": 15.68
+        }
+      }
+    },
+    "risk_assessment": {
+      "risk_percent": 0,
+      "risk_usdt": 0,
+      "position_risk": "low",
+      "recommended_capital_usage": "8.57%"
+    },
+    "execution_plan": {
+      "action": "hold",
+      "entry_condition": "继续持有",
+      "exit_conditions": [],
+      "notes": [
+        "密切关注价格变化"
+      ]
+    }
+  },
+  "risk_assessment": {
+    "timestamp": 1769398763448,
+    "datetime": "2026-01-26 11:39:23",
+    "symbol": "SOLUSDT",
+    "validation_result": {
+      "is_valid": true,
+      "warnings": [
+        "建议设置止损"
+      ],
+      "errors": [],
+      "suggestions": [
+        "建议设置止损价: 117.1450 (默认2%)"
+      ],
+      "risk_score": 32,
+      "risk_level": "medium"
+    },
+    "var_analysis": {
+      "var": 0.01,
+      "cvar": 0.01,
+      "var_percent": 0.8666,
+      "cvar_percent": 1.6414
+    },
+    "risk_summary": "风险级别: MEDIUM，风险分数: 32/100\n\n注意事项:\n  - 建议设置止损\n\n📊 VaR分析 (95%置信度):\n  - 单日最大可能亏损: 0.01 USDT (0.8666%)\n  - 条件风险价值: 0.01 USDT (1.6414%)\n",
+    "recommendations": [
+      "建议设置止损价: 117.1450 (默认2%)",
+      "📝 请仔细评估后再做决策"
+    ]
+  },
+  "summary": "\n📊 交易决策总结\n========================================\n\n交易对: SOLUSDT\n分析时间: 2026-01-26 11:39:23\n\n🎯 最终决策\n==============================\n动作: WAIT\n趋势: NEUTRAL\n信心度: 36.43/100\n建议仓位: 8.57%\n仓位价值: 0.89 USDT\n\n📈 入场参考\n------------------------------\n建议入场价: 119.5357\n\n🤝 模型一致性\n------------------------------\n一致性级别: HIGH\n一致性分数: 100.0\n模型数量: 2\n平均信心度: 37.5\n\n⚠️  风险评估\n------------------------------\n风险级别: MEDIUM\n风险分数: 32/100\n\n⚠️  注意事项:\n  • 建议设置止损\n\n========================================\n💡 请仔细评估风险后再做决策\n"
+}
