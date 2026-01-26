@@ -95,6 +95,13 @@ class LLMAnalyzer(LoggerMixin):
             model_config = self.config.get_model_config(model_name)
             model_id = model_config.get("model_name", "deepseek-coder")
             
+            # 打印Prompt日志
+            self.logger.info(f"\n" + "="*80)
+            self.logger.info(f"LLM调用信息: {model_name} ({model_id}) - {role}")
+            self.logger.info("="*80)
+            self.logger.info(f"Prompt内容:\n{prompt}")
+            self.logger.info("="*80 + "\n")
+            
             # 调用LLM
             self.logger.debug(f"调用 {model_name} ({model_id}) 进行 {role} 分析...")
             
@@ -106,6 +113,7 @@ class LLMAnalyzer(LoggerMixin):
                     {"role": "system", "content": "你是专业的数字货币交易分析师，只输出JSON格式的分析结果。"},
                     {"role": "user", "content": prompt}
                 ],
+                extra_body={"enable_thinking": True},
                 temperature=0.3,
                 max_tokens=2000,
                 response_format={"type": "json_object"}
@@ -163,6 +171,12 @@ class LLMAnalyzer(LoggerMixin):
             model_config = self.config.get_model_config(model_name)
             model_id = model_config.get("model_name", "deepseek-coder")
             
+            self.logger.info(f"\n" + "="*80)
+            self.logger.info(f"LLM调用信息: {model_name} ({model_id}) - {role}")
+            self.logger.info("="*80)
+            self.logger.info(f"Prompt内容:\n{prompt}")
+            self.logger.info("="*80 + "\n")
+            
             self.logger.debug(f"异步调用 {model_name} ({model_id}) 进行 {role} 分析...")
             
             start_time = time.time()
@@ -174,6 +188,7 @@ class LLMAnalyzer(LoggerMixin):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
+                extra_body={"enable_thinking": True},
                 max_tokens=2000,
                 response_format={"type": "json_object"}
             )

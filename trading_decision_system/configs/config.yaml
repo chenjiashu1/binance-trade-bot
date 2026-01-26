@@ -6,11 +6,11 @@ exchange:
   api_key: "OkMKlKwxpaR63fcMbG1HTLcR7i0IYBYZvgIYUqnENaRVG8Zs6bBr2awDckiSM5Ki"
   secret: "elxxuAiv9uo8VRCeKM8lCeUGzAO6RW658iEY2QKLE6imngTMlIcgL4LQ0VD6sRXx"
   symbols:
-    - "BTCUSDT"
+    # - "BTCUSDT"
     - "SOLUSDT"
-    - "ETHUSDT"
-    - "ADAUSDT"
-    - "XRPUSDT"
+    # - "ETHUSDT"
+    # - "ADAUSDT"
+    # - "XRPUSDT"
   timeframes:
     - "1h"
     - "4h"
