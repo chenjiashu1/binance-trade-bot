@@ -4,6 +4,7 @@
 
 import asyncio
 import json
+from math import log
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -86,270 +87,332 @@ class TradingDecisionSystem:
         Returns:
             分析结果
         """
-        self.logger.info(f"\n{'='*60}")
+        self.logger.info(f"\n{'='*80}")
         self.logger.info(f"开始分析: {symbol} ({role})")
-        self.logger.info(f"{'='*60}\n")
+        self.logger.info(f"{'='*80}\n")
         
         try:
-            # ==================== 步骤1: 获取市场数据 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤1: 获取市场数据")
-            self.logger.info("="*60)
+            # 步骤1: 获取市场数据
+            market_data = await self._fetch_market_data(symbol)
             
-            try:
-                klines_1h = self.data_fetcher.get_klines(symbol, "1h", limit=100)
-                klines_4h = self.data_fetcher.get_klines(symbol, "4h", limit=50)
-                klines_1d = self.data_fetcher.get_klines(symbol, "1d", limit=30)
-                
-                ticker = self.data_fetcher.get_symbol_ticker(symbol)
-                ticker_24h = self.data_fetcher.get_24h_ticker(symbol)
-                
-                self.logger.info(f"  ✓ K线数据: 1h({len(klines_1h)}), 4h({len(klines_4h)}), 1d({len(klines_1d)})")
-                self.logger.info(f"  ✓ 当前价格: {ticker['price']} USDT")
-                self.logger.info(f"  ✓ 24h涨跌幅: {ticker_24h['price_change_percent']}%")
-                self.logger.info(f"  ✓ 24h成交量: {ticker_24h['volume']}")
-                self.logger.info(f"  ✓ 24h最高价: {ticker_24h['high_price']}")
-                self.logger.info(f"  ✓ 24h最低价: {ticker_24h['low_price']}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 市场数据获取失败: {e}")
-                raise
+            # 步骤2: 计算技术指标
+            indicators = await self._calculate_indicators(market_data)
             
-            # ==================== 步骤2: 计算技术指标 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤2: 计算技术指标")
-            self.logger.info("="*60)
+            # 步骤3: 获取账户信息
+            account_info = await self._get_account_info(symbol)
             
-            try:
-                indicators_1h = self.indicator_calculator.calculate_all_indicators(klines_1h)
-                indicators_4h = self.indicator_calculator.calculate_all_indicators(klines_4h)
-                indicators_1d = self.indicator_calculator.calculate_all_indicators(klines_1d)
-                
-                self.logger.info(f"  ✓ 1小时指标:")
-                self.logger.info(f"    • RSI: {indicators_1h['rsi']['value']} ({indicators_1h['rsi']['status']})")
-                self.logger.info(f"    • MACD: {indicators_1h['macd']['macd']} (Signal: {indicators_1h['macd']['signal']})")
-                self.logger.info(f"    • 趋势: {indicators_1h['trend']['trend']} (强度: {indicators_1h['trend']['strength']}%)")
-                self.logger.info(f"    • 布林带位置: {indicators_1h['bollinger']['position']}")
-                
-                self.logger.info(f"  ✓ 4小时指标:")
-                self.logger.info(f"    • RSI: {indicators_4h['rsi']['value']} ({indicators_4h['rsi']['status']})")
-                self.logger.info(f"    • MACD: {indicators_4h['macd']['macd']} (Signal: {indicators_4h['macd']['signal']})")
-                self.logger.info(f"    • 趋势: {indicators_4h['trend']['trend']} (强度: {indicators_4h['trend']['strength']}%)")
-                self.logger.info(f"    • 布林带位置: {indicators_4h['bollinger']['position']}")
-                
-                self.logger.info(f"  ✓ 日线指标:")
-                self.logger.info(f"    • RSI: {indicators_1d['rsi']['value']} ({indicators_1d['rsi']['status']})")
-                self.logger.info(f"    • MACD: {indicators_1d['macd']['macd']} (Signal: {indicators_1d['macd']['signal']})")
-                self.logger.info(f"    • 趋势: {indicators_1d['trend']['trend']} (强度: {indicators_1d['trend']['strength']}%)")
-                self.logger.info(f"    • 布林带位置: {indicators_1d['bollinger']['position']}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 技术指标计算失败: {e}")
-                raise
+            # 步骤4: 准备LLM输入数据
+            llm_input = self._prepare_llm_input(
+                symbol,
+                market_data['ticker'],
+                market_data['ticker_24h'],
+                indicators['1h'],
+                indicators['4h'],
+                indicators['1d'],
+                account_info
+            )
             
-            # ==================== 步骤3: 获取账户信息 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤3: 获取账户信息")
-            self.logger.info("="*60)
+            # 步骤5: 调用LLM分析
+            model_results = await self._run_llm_analysis(role, llm_input)
+            self.logger.info(f"LLM分析结果: {model_results}")
+            # 步骤6: 聚合决策
+            final_decision = await self._aggregate_decisions(model_results, account_info)
             
-            try:
-                account_summary = self.account_manager.get_account_summary(symbol)
-                
-                self.logger.info(f"  ✓ 总资产: {account_summary['total_assets_usdt']} USDT")
-                self.logger.info(f"  ✓ USDT余额: {account_summary['balances'].get('USDT', 0)} USDT")
-                self.logger.info(f"  ✓ 持仓币种数量: {len(account_summary['balances'])}")
-                self.logger.info(f"  ✓ 交易统计: {account_summary['trade_statistics']}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 账户信息获取失败: {e}")
-                raise
+            # 步骤7: 风险评估
+            risk_report = await self._evaluate_risk(
+                symbol,
+                final_decision,
+                account_info,
+                market_data['klines_1h'],
+                market_data['ticker_24h']
+            )
             
-            # ==================== 步骤4: 准备LLM输入数据 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤4: 准备LLM输入数据")
-            self.logger.info("="*60)
+            # 步骤8: 生成最终报告
+            final_report = self._generate_final_report(
+                symbol,
+                role,
+                market_data,
+                indicators,
+                account_info,
+                model_results,
+                final_decision,
+                risk_report
+            )
             
-            try:
-                llm_input = self._prepare_llm_input(
-                    symbol,
-                    ticker,
-                    ticker_24h,
-                    indicators_1h,
-                    indicators_4h,
-                    indicators_1d,
-                    account_summary
-                )
-                
-                self.logger.info(f"  ✓ LLM输入数据已准备")
-                self.logger.info(f"    • 数据字段数量: {len(llm_input)}")
-                self.logger.info(f"    • 分析角色: {role}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ LLM输入数据准备失败: {e}")
-                raise
+            # 步骤9: 保存报告
+            self._save_report(final_report)
             
-            # ==================== 步骤5: 调用LLM分析 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤5: 调用LLM分析")
-            self.logger.info("="*60)
-            
-            try:
-                model_results = await self.llm_analyzer.async_analyze_all(role, llm_input)
-                
-                self.logger.info(f"  ✓ 模型分析完成: {len(model_results)} 个模型")
-                for model_name, result in model_results.items():
-                    if result.get("success", True):
-                        self.logger.info(f"    • {model_name}:")
-                        self.logger.info(f"      - 信心度: {result.get('confidence_score', 0)}/100")
-                        self.logger.info(f"      - 建议动作: {result.get('action', 'N/A')}")
-                        self.logger.info(f"      - 趋势判断: {result.get('bias', 'N/A')}")
-                        self.logger.info(f"      - 响应时间: {result.get('response_time_seconds', 0)}秒")
-                    else:
-                        self.logger.warning(f"    • {model_name}: 失败 - {result.get('error')}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ LLM分析失败: {e}")
-                raise
-            
-            # ==================== 步骤6: 聚合决策 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤6: 聚合决策")
-            self.logger.info("="*60)
-            
-            try:
-                # 设置模型权重
-                weights = self.llm_analyzer.get_model_weights()
-                self.decision_aggregator.set_model_weights(weights)
-                
-                self.logger.info(f"  ✓ 模型权重配置:")
-                for model_name, weight in weights.items():
-                    self.logger.info(f"    • {model_name}: {weight*100:.0f}%")
-                
-                final_decision = self.decision_aggregator.aggregate_decisions(
-                    model_results,
-                    account_summary
-                )
-                
-                decision = final_decision['final_decision']
-                consensus = final_decision['model_consensus']
-                
-                self.logger.info(f"  ✓ 最终决策:")
-                self.logger.info(f"    • 动作: {decision['action'].upper()}")
-                self.logger.info(f"    • 趋势: {decision['bias'].upper()}")
-                self.logger.info(f"    • 信心度: {decision['confidence_score']}/100")
-                self.logger.info(f"    • 建议仓位: {decision['recommended_position_size_percent']}%")
-                self.logger.info(f"    • 建议仓位价值: {decision['recommended_position_value_usdt']} USDT")
-                self.logger.info(f"    • 入场价: {decision['entry_price']}")
-                self.logger.info(f"    • 止损价: {decision['stop_loss']}")
-                self.logger.info(f"    • 止盈价: {decision['take_profit_levels']}")
-                
-                self.logger.info(f"  ✓ 模型一致性:")
-                self.logger.info(f"    • 一致性级别: {consensus['agreement_level'].upper()}")
-                self.logger.info(f"    • 一致性分数: {consensus['agreement_score']}")
-                self.logger.info(f"    • 模型数量: {consensus['models_count']}")
-                self.logger.info(f"    • 平均信心度: {consensus['avg_confidence']}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 决策聚合失败: {e}")
-                raise
-            
-            # ==================== 步骤7: 风险评估 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤7: 风险评估")
-            self.logger.info("="*60)
-            
-            try:
-                trade_info = {
-                    "symbol": symbol,
-                    "position_size": final_decision['final_decision']['recommended_position_size_percent'],
-                    "entry_price": final_decision['final_decision']['entry_price'],
-                    "stop_loss": final_decision['final_decision']['stop_loss'],
-                    "price_change_24h": ticker_24h['price_change_percent']
-                }
-                
-                risk_report = self.risk_controller.generate_risk_report(
-                    trade_info,
-                    account_summary,
-                    klines_1h["close"].tolist() if not klines_1h.empty else []
-                )
-                
-                risk = risk_report['validation_result']
-                
-                self.logger.info(f"  ✓ 风险评估结果:")
-                self.logger.info(f"    • 风险级别: {risk['risk_level'].upper()}")
-                self.logger.info(f"    • 风险分数: {risk['risk_score']}/100")
-                self.logger.info(f"    • 验证状态: {risk['status']}")
-                
-                if risk.get('errors'):
-                    self.logger.error(f"  ⚠️  风险错误:")
-                    for error in risk['errors']:
-                        self.logger.error(f"    • {error}")
-                
-                if risk.get('warnings'):
-                    self.logger.warning(f"  ⚠️  风险警告:")
-                    for warning in risk['warnings']:
-                        self.logger.warning(f"    • {warning}")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 风险评估失败: {e}")
-                raise
-            
-            # ==================== 步骤8: 生成最终报告 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤8: 生成最终报告")
-            self.logger.info("="*60)
-            
-            try:
-                final_report = {
-                    "analysis_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "symbol": symbol,
-                    "analysis_type": role,
-                    "market_data": {
-                        "current_price": ticker['price'],
-                        "price_change_24h": ticker_24h['price_change_percent'],
-                        "indicators_1h": indicators_1h,
-                        "indicators_4h": indicators_4h,
-                        "indicators_1d": indicators_1d
-                    },
-                    "account_info": account_summary,
-                    "model_analyses": model_results,
-                    "final_decision": final_decision,
-                    "risk_assessment": risk_report,
-                    "summary": self._generate_summary(final_decision, risk_report)
-                }
-                
-                self.logger.info(f"  ✓ 最终报告已生成")
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 最终报告生成失败: {e}")
-                raise
-            
-            # ==================== 步骤9: 保存报告 ====================
-            self.logger.info("\n" + "="*60)
-            self.logger.info("步骤9: 保存报告")
-            self.logger.info("="*60)
-            
-            try:
-                self._save_report(final_report)
-                
-            except Exception as e:
-                self.logger.error(f"  ❌ 报告保存失败: {e}")
-                # 报告保存失败不影响整体流程，继续执行
-            
-            # ==================== 分析完成 ====================
-            self.logger.info("\n" + "="*60)
+            # 分析完成
+            self.logger.info("\n" + "="*80)
             self.logger.info("✅ 分析完成!")
-            self.logger.info("="*60 + "\n")
+            self.logger.info(f"交易对: {symbol}")
+            self.logger.info(f"分析角色: {role}")
+            self.logger.info(f"最终决策: {final_decision['final_decision']['action'].upper()}")
+            self.logger.info(f"信心度: {final_decision['final_decision']['confidence_score']}/100")
+            self.logger.info("="*80 + "\n")
             
             return final_report
             
         except Exception as e:
-            self.logger.error(f"  ❌ 分析失败: {e}", exc_info=True)
-            self.logger.error("\n" + "="*60)
+            self.logger.error("\n" + "="*80)
             self.logger.error("❌ 分析失败!")
-            self.logger.error("="*60)
-            self.logger.error(f"错误信息: {e}", exc_info=True)
-            self.logger.error("="*60 + "\n")
+            self.logger.error(f"交易对: {symbol}")
+            self.logger.error(f"分析角色: {role}")
+            self.logger.error(f"错误信息: {e}")
+            self.logger.error("="*80 + "\n")
+            raise
+    
+    async def _fetch_market_data(self, symbol: str) -> dict:
+        """获取市场数据"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤1: 获取市场数据")
+        self.logger.info("-"*80)
+        
+        try:
+            # 并行获取不同时间周期的K线数据
+            klines_1h = self.data_fetcher.get_klines(symbol, "1h", limit=100)
+            klines_4h = self.data_fetcher.get_klines(symbol, "4h", limit=50)
+            klines_1d = self.data_fetcher.get_klines(symbol, "1d", limit=30)
+            
+            ticker = self.data_fetcher.get_symbol_ticker(symbol)
+            ticker_24h = self.data_fetcher.get_24h_ticker(symbol)
+            
+            self.logger.info(f"  ✓ K线数据: 1h({len(klines_1h)}), 4h({len(klines_4h)}), 1d({len(klines_1d)})")
+            self.logger.info(f"  ✓ 当前价格: {ticker['price']} USDT")
+            self.logger.info(f"  ✓ 24h涨跌幅: {ticker_24h['price_change_percent']}%")
+            self.logger.info(f"  ✓ 24h成交量: {ticker_24h['volume']}")
+            self.logger.info(f"  ✓ 24h最高价: {ticker_24h['high_price']}")
+            self.logger.info(f"  ✓ 24h最低价: {ticker_24h['low_price']}")
+            
+            return {
+                'klines_1h': klines_1h,
+                'klines_4h': klines_4h,
+                'klines_1d': klines_1d,
+                'ticker': ticker,
+                'ticker_24h': ticker_24h
+            }
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 市场数据获取失败: {e}")
+            raise
+    
+    async def _calculate_indicators(self, market_data: dict) -> dict:
+        """计算技术指标"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤2: 计算技术指标")
+        self.logger.info("-"*80)
+        
+        try:
+            # 并行计算不同时间周期的指标
+            indicators_1h = self.indicator_calculator.calculate_all_indicators(market_data['klines_1h'])
+            indicators_4h = self.indicator_calculator.calculate_all_indicators(market_data['klines_4h'])
+            indicators_1d = self.indicator_calculator.calculate_all_indicators(market_data['klines_1d'])
+            
+            self._log_indicators("1小时", indicators_1h)
+            self._log_indicators("4小时", indicators_4h)
+            self._log_indicators("日线", indicators_1d)
+            
+            return {
+                '1h': indicators_1h,
+                '4h': indicators_4h,
+                '1d': indicators_1d
+            }
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 技术指标计算失败: {e}")
+            raise
+    
+    def _log_indicators(self, timeframe: str, indicators: dict):
+        """记录指标日志"""
+        self.logger.info(f"  ✓ {timeframe}指标:")
+        self.logger.info(f"    • RSI: {indicators['rsi']['value']} ({indicators['rsi']['status']})")
+        self.logger.info(f"    • MACD: {indicators['macd']['macd']} (Signal: {indicators['macd']['signal']})")
+        self.logger.info(f"    • 趋势: {indicators['trend']['trend']} (强度: {indicators['trend']['strength']}%)")
+        self.logger.info(f"    • 布林带位置: {indicators['bollinger']['position']}")
+    
+    async def _get_account_info(self, symbol: str) -> dict:
+        """获取账户信息"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤3: 获取账户信息")
+        self.logger.info("-"*80)
+        
+        try:
+            account_summary = self.account_manager.get_account_summary(symbol)
+            
+            self.logger.info(f"  ✓ 总资产: {account_summary['total_assets_usdt']} USDT")
+            self.logger.info(f"  ✓ USDT余额: {account_summary['balances'].get('USDT', 0)} USDT")
+            self.logger.info(f"  ✓ 持仓币种数量: {len(account_summary['balances'])}")
+            self.logger.info(f"  ✓ 交易统计: {account_summary['trade_statistics']}")
+            
+            return account_summary
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 账户信息获取失败: {e}")
+            raise
+    
+    async def _run_llm_analysis(self, role: str, llm_input: dict) -> dict:
+        """运行LLM分析"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤5: 调用LLM分析")
+        self.logger.info("-"*80)
+        
+        try:
+            model_results = await self.llm_analyzer.async_analyze_all(role, llm_input)
+            
+            self.logger.info(f"  ✓ 模型分析完成: {len(model_results)} 个模型")
+            
+            for model_name, result in model_results.items():
+                if result.get("success", True):
+                    self.logger.info(f"    • {model_name}:")
+                    self.logger.info(f"      - 信心度: {result.get('confidence_score', 0)}/100")
+                    self.logger.info(f"      - 建议动作: {result.get('action', 'N/A')}")
+                    self.logger.info(f"      - 趋势判断: {result.get('bias', 'N/A')}")
+                    self.logger.info(f"      - 响应时间: {result.get('response_time_seconds', 0)}秒")
+                else:
+                    self.logger.warning(f"    • {model_name}: 失败 - {result.get('error')}")
+            
+            return model_results
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ LLM分析失败: {e}")
+            raise
+    
+    async def _aggregate_decisions(self, model_results: dict, account_info: dict) -> dict:
+        """聚合决策"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤6: 聚合决策")
+        self.logger.info("-"*80)
+        
+        try:
+            # 设置模型权重
+            weights = self.llm_analyzer.get_model_weights()
+            self.decision_aggregator.set_model_weights(weights)
+            
+            self.logger.info(f"  ✓ 模型权重配置:")
+            for model_name, weight in weights.items():
+                self.logger.info(f"    • {model_name}: {weight*100:.0f}%")
+            
+            final_decision = self.decision_aggregator.aggregate_decisions(
+                model_results,
+                account_info
+            )
+            
+            decision = final_decision['final_decision']
+            consensus = final_decision['model_consensus']
+            
+            self.logger.info(f"  ✓ 最终决策:")
+            self.logger.info(f"    • 动作: {decision['action'].upper()}")
+            self.logger.info(f"    • 趋势: {decision['bias'].upper()}")
+            self.logger.info(f"    • 信心度: {decision['confidence_score']}/100")
+            self.logger.info(f"    • 建议仓位: {decision['recommended_position_size_percent']}%")
+            self.logger.info(f"    • 建议仓位价值: {decision['recommended_position_value_usdt']} USDT")
+            self.logger.info(f"    • 入场价: {decision['entry_price']}")
+            self.logger.info(f"    • 止损价: {decision['stop_loss']}")
+            self.logger.info(f"    • 止盈价: {decision['take_profit_levels']}")
+            
+            self.logger.info(f"  ✓ 模型一致性:")
+            self.logger.info(f"    • 一致性级别: {consensus['agreement_level'].upper()}")
+            self.logger.info(f"    • 一致性分数: {consensus['agreement_score']}")
+            self.logger.info(f"    • 模型数量: {consensus['models_count']}")
+            self.logger.info(f"    • 平均信心度: {consensus['avg_confidence']}")
+            
+            return final_decision
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 决策聚合失败: {e}")
+            raise
+    
+    async def _evaluate_risk(
+        self,
+        symbol: str,
+        final_decision: dict,
+        account_info: dict,
+        klines_1h: dict,
+        ticker_24h: dict
+    ) -> dict:
+        """评估风险"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤7: 风险评估")
+        self.logger.info("-"*80)
+        
+        try:
+            trade_info = {
+                "symbol": symbol,
+                "position_size": final_decision['final_decision']['recommended_position_size_percent'],
+                "entry_price": final_decision['final_decision']['entry_price'],
+                "stop_loss": final_decision['final_decision']['stop_loss'],
+                "price_change_24h": ticker_24h['price_change_percent']
+            }
+            
+            risk_report = self.risk_controller.generate_risk_report(
+                trade_info,
+                account_info,
+                klines_1h["close"].tolist() if not klines_1h.empty else []
+            )
+            
+            risk = risk_report['validation_result']
+            
+            self.logger.info(f"  ✓ 风险评估结果:")
+            self.logger.info(f"    • 风险级别: {risk['risk_level'].upper()}")
+            self.logger.info(f"    • 风险分数: {risk['risk_score']}/100")
+            
+            if risk.get('errors'):
+                self.logger.error(f"  ⚠️  风险错误:")
+                for error in risk['errors']:
+                    self.logger.error(f"    • {error}")
+            
+            if risk.get('warnings'):
+                self.logger.warning(f"  ⚠️  风险警告:")
+                for warning in risk['warnings']:
+                    self.logger.warning(f"    • {warning}")
+            
+            return risk_report
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 风险评估失败: {e}")
+            raise
+    
+    def _generate_final_report(
+        self,
+        symbol: str,
+        role: str,
+        market_data: dict,
+        indicators: dict,
+        account_info: dict,
+        model_results: dict,
+        final_decision: dict,
+        risk_report: dict
+    ) -> dict:
+        """生成最终报告"""
+        self.logger.info("\n" + "-"*80)
+        self.logger.info("步骤8: 生成最终报告")
+        self.logger.info("-"*80)
+        
+        try:
+            final_report = {
+                "analysis_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "symbol": symbol,
+                "analysis_type": role,
+                "market_data": {
+                    "current_price": market_data['ticker']['price'],
+                    "price_change_24h": market_data['ticker_24h']['price_change_percent'],
+                    "indicators_1h": indicators['1h'],
+                    "indicators_4h": indicators['4h'],
+                    "indicators_1d": indicators['1d']
+                },
+                "account_info": account_info,
+                "model_analyses": model_results,
+                "final_decision": final_decision,
+                "risk_assessment": risk_report,
+                "summary": self._generate_summary(final_decision, risk_report)
+            }
+            
+            self.logger.info(f"  ✓ 最终报告已生成")
+            
+            return final_report
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 最终报告生成失败: {e}")
             raise
     
     def _prepare_llm_input(
@@ -546,7 +609,8 @@ async def main():
         system.close()
         
     except Exception as e:
-        print(f"系统运行失败: {e}")
+        # 记录错误日志
+        system.logger.error(f"系统运行失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
 
