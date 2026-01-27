@@ -27,6 +27,7 @@ class TaskScheduler(LoggerMixin):
         self.scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
         self.jobs: Dict[str, Any] = {}
         self.is_running = False
+        self.task_executor = None
     
     def start(self):
         """启动调度器"""
@@ -94,6 +95,7 @@ class TaskScheduler(LoggerMixin):
         - "HH:MM" (每天)
         - "*:MM" (每小时)
         - "HH:*" (每分钟)
+        - "*/5:00" (每5分钟)
         - "HH:MM:SS" (精确到秒)
         
         Args:
@@ -114,9 +116,15 @@ class TaskScheduler(LoggerMixin):
                 # 每分钟
                 return IntervalTrigger(minutes=1)
             
-            elif hour == "*":
-                # 每小时的第X分钟
+            elif hour == "*" or hour.startswith("*/"):
+                # 每小时的第X分钟，或每N分钟
                 try:
+                    # 检查是否是 */N 格式
+                    if hour.startswith("*/"):
+                        # 每N分钟
+                        interval = int(hour[2:])
+                        return IntervalTrigger(minutes=interval)
+                    
                     minute_int = int(minute)
                     return CronTrigger(minute=minute_int, second=0)
                 except ValueError:
@@ -290,6 +298,16 @@ class TaskScheduler(LoggerMixin):
         """
         return self.jobs
     
+    def set_task_executor(self, executor: Callable):
+        """
+        设置任务执行器
+        
+        Args:
+            executor: 任务执行函数
+        """
+        self.task_executor = executor
+        self.logger.info("任务执行器已设置")
+    
     async def _execute_task(self, task_type: str):
         """
         执行任务
@@ -298,6 +316,14 @@ class TaskScheduler(LoggerMixin):
             task_type: 任务类型
         """
         self.logger.info(f"开始执行任务: {task_type} at {datetime.now()}")
+        
+        if self.task_executor:
+            try:
+                await self.task_executor(task_type)
+            except Exception as e:
+                self.logger.error(f"任务执行失败 {task_type}: {e}")
+        else:
+            self.logger.warning(f"任务执行器未设置，跳过任务: {task_type}")
         
         try:
             # 这里会调用实际的分析逻辑
