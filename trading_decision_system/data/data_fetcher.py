@@ -324,3 +324,48 @@ class DataFetcher(LoggerMixin):
             for symbol, result in zip(symbols, results)
             if not isinstance(result, Exception)
         }
+    
+    @cached(cache=TTLCache(maxsize=100, ttl=3600))  # 1小时缓存
+    def get_commission_rate(self, symbol: str) -> Dict[str, any]:
+        """
+        获取交易对的佣金费率
+        
+        Args:
+            symbol: 交易对 (如 "BTCUSDT")
+            
+        Returns:
+            佣金费率信息
+        """
+        try:
+            self.logger.debug(f"获取佣金费率: {symbol}")
+            
+            commission = self.client.get_commission_rate(symbol=symbol.upper())
+            
+            return {
+                "symbol": commission.get("symbol", symbol),
+                "maker": float(commission.get("makerCommission", 0)),
+                "taker": float(commission.get("takerCommission", 0)),
+                "buyer": float(commission.get("buyerCommission", 0)),
+                "seller": float(commission.get("sellerCommission", 0))
+            }
+            
+        except BinanceAPIException as e:
+            self.logger.warning(f"获取佣金费率失败 {symbol}: {e}")
+            return {
+                "symbol": symbol,
+                "maker": 0.001,  # 默认maker费率 0.1%
+                "taker": 0.001,  # 默认taker费率 0.1%
+                "buyer": 0.001,
+                "seller": 0.001,
+                "error": str(e)
+            }
+        except Exception as e:
+            self.logger.error(f"获取佣金费率异常 {symbol}: {e}")
+            return {
+                "symbol": symbol,
+                "maker": 0.001,
+                "taker": 0.001,
+                "buyer": 0.001,
+                "seller": 0.001,
+                "error": str(e)
+            }

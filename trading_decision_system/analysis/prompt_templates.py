@@ -143,29 +143,6 @@ class PromptTemplates:
 === 持仓情况 ===
 {positions_summary}
 
-=== 多时间框架详细数据 ===
-
-1小时图:
-- 趋势: {trend_1h}（强度: {trend_strength_1h}%）
-- RSI: {rsi_1h}（状态: {rsi_status_1h}）
-- MACD: {macd_1h}, Signal: {signal_1h}, Histogram: {histogram_1h}
-- MA20: {ma20_1h}, MA50: {ma50_1h}
-- 布林带: 上轨={bb_upper_1h}, 中轨={bb_middle_1h}, 下轨={bb_lower_1h}
-
-4小时图:
-- 趋势: {trend_4h}（强度: {trend_strength_4h}%）
-- RSI: {rsi_4h}（状态: {rsi_status_4h}）
-- MACD: {macd_4h}, Signal: {signal_4h}, Histogram: {histogram_4h}
-- MA20: {ma20_4h}, MA50: {ma50_4h}, MA200: {ma200_4h}
-- 布林带: 上轨={bb_upper_4h}, 中轨={bb_middle_4h}, 下轨={bb_lower_4h}
-
-日线图:
-- 趋势: {trend_1d}（强度: {trend_strength_1d}%）
-- RSI: {rsi_1d}（状态: {rsi_status_1d}）
-- MACD: {macd_1d}, Signal: {signal_1d}, Histogram: {histogram_1d}
-- MA20: {ma20_1d}, MA50: {ma50_1d}, MA200: {ma200_1d}
-- 布林带: 上轨={bb_upper_1d}, 中轨={bb_middle_1d}, 下轨={bb_lower_1d}
-
 === 用户问题（如有） ===
 {user_message}
 

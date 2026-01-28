@@ -4,6 +4,7 @@
 """
 
 import asyncio
+import json
 import logging
 import signal
 import sys
@@ -505,6 +506,9 @@ class TradingDecisionEngine:
         # 持仓情况摘要
         positions_summary = self._generate_positions_summary(account_info, symbol)
         
+        # 获取佣金费率
+        commission_rates = self.data_fetcher.get_commission_rate(symbol)
+        
         return {
             "symbol": symbol,
             "period": period,
@@ -514,6 +518,7 @@ class TradingDecisionEngine:
             "volume_24h": market_data['ticker_24h']['volume'],
             "open_interest": "N/A",  # 需要从API获取
             "funding_rate": "N/A",  # 需要从API获取
+            "commission_rates": commission_rates,  # 佣金费率
             "kline_count": 20,
             "klines_summary": klines_summary,
             "indicators_summary": indicators_summary,
