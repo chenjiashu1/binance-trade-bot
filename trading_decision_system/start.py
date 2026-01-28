@@ -20,9 +20,9 @@ import sys
 from pathlib import Path
 
 # 添加项目路径
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from trading_decision_system.integrated_service import IntegratedService
+from trading_decision_system.service.integrated_service import IntegratedService
 
 
 async def main():

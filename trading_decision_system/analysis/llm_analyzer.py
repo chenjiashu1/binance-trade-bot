@@ -32,12 +32,21 @@ class LLMAnalyzer(LoggerMixin):
         self.async_clients: Dict[str, AsyncOpenAI] = {}
         self._init_clients()
     
+    def __del__(self):
+        """析构函数 - 确保资源释放"""
+        self.close()
+    
     def _init_clients(self):
         """初始化LLM客户端"""
         models_config = self.config.get("models", {})
         
+        if not models_config:
+            self.logger.warning("未找到模型配置")
+            return
+        
         for model_name, model_config in models_config.items():
             if not model_config.get("enabled", False):
+                self.logger.debug(f"模型 {model_name} 已禁用")
                 continue
             
             try:
@@ -65,7 +74,7 @@ class LLMAnalyzer(LoggerMixin):
                 self.logger.info(f"{model_name} 客户端初始化成功")
                 
             except Exception as e:
-                self.logger.error(f"{model_name} 客户端初始化失败: {e}")
+                self.logger.error(f"{model_name} 客户端初始化失败: {e}", exc_info=True)
     
     def analyze(
         self,
@@ -298,23 +307,40 @@ class LLMAnalyzer(LoggerMixin):
         if not enabled_models:
             raise AnalysisError("没有启用的模型", model="all")
         
+        # 过滤掉不可用的模型
+        available_models = [
+            model_name for model_name in enabled_models.keys()
+            if model_name in self.async_clients
+        ]
+        
+        if not available_models:
+            raise AnalysisError("没有可用的模型客户端", model="all")
+        
+        self.logger.info(f"并行分析模型: {available_models}")
+        
         tasks = []
-        for model_name in enabled_models.keys():
+        for model_name in available_models:
             task = self.async_analyze(model_name, role, data)
             tasks.append(task)
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         model_results = {}
-        for model_name, result in zip(enabled_models.keys(), results):
+        failed_count = 0
+        
+        for model_name, result in zip(available_models, results):
             if isinstance(result, Exception):
-                self.logger.error(f"{model_name} 分析失败: {result}")
+                self.logger.error(f"{model_name} 分析失败: {result}", exc_info=True)
                 model_results[model_name] = {
                     "error": str(result),
-                    "success": False
+                    "success": False,
+                    "error_type": type(result).__name__
                 }
+                failed_count += 1
             else:
                 model_results[model_name] = result
+        
+        self.logger.info(f"并行分析完成: {len(available_models)-failed_count}/{len(available_models)} 个模型成功")
         
         return model_results
     
@@ -381,25 +407,39 @@ class LLMAnalyzer(LoggerMixin):
         return list(self.clients.keys())
     
     def close(self):
-        """关闭所有客户端连接"""
-        for model_name, client in self.clients.items():
+        """关闭所有客户端连接（仅同步客户端）"""
+        if not self.clients:
+            return
+        
+        closed_count = 0
+        for model_name, client in list(self.clients.items()):
             try:
                 client.close()
                 self.logger.debug(f"{model_name} 客户端已关闭")
+                closed_count += 1
             except Exception as e:
-                self.logger.error(f"关闭 {model_name} 客户端失败: {e}")
+                self.logger.error(f"关闭 {model_name} 客户端失败: {e}", exc_info=True)
+            finally:
+                if model_name in self.clients:
+                    del self.clients[model_name]
         
-        self.clients.clear()
-        self.async_clients.clear()
+        self.logger.info(f"已关闭 {closed_count} 个同步客户端连接")
     
     async def async_close(self):
         """异步关闭所有客户端连接"""
-        for model_name, client in self.async_clients.items():
+        if not self.async_clients:
+            return
+        
+        for model_name, client in list(self.async_clients.items()):
             try:
                 await client.close()
                 self.logger.debug(f"{model_name} 异步客户端已关闭")
             except Exception as e:
-                self.logger.error(f"关闭 {model_name} 异步客户端失败: {e}")
+                self.logger.error(f"关闭 {model_name} 异步客户端失败: {e}", exc_info=True)
+            finally:
+                del self.async_clients[model_name]
         
-        self.clients.clear()
-        self.async_clients.clear()
+        # 同步关闭剩余的同步客户端
+        self.close()
+        
+        self.logger.info(f"已关闭所有客户端连接")

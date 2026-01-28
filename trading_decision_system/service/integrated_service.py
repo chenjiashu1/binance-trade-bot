@@ -4,6 +4,7 @@
 """
 
 import asyncio
+import logging
 import signal
 import sys
 from pathlib import Path
@@ -69,22 +70,30 @@ class TradingDecisionEngine:
     封装所有分析逻辑
     """
     
-    def __init__(self, config_path: str = "./trading_decision_system/configs/config.yaml"):
-        self.logger = setup_logger(
-            name="trading_decision_engine",
-            log_level="INFO",
-            log_file="./trading_decision_system/logs/integrated.log"
-        )
+    def __init__(self, config_path: Optional[str] = None):
+        self.config_path = config_path or self._get_default_config_path()
+        self.logger = self._setup_logger()
         
         self.logger.info("初始化交易决策引擎...")
-        
-        # 加载配置
-        self.config = ConfigLoader(config_path)
-        
-        # 初始化模块
+        self.config = ConfigLoader(self.config_path)
         self._init_modules()
-        
         self.logger.info("交易决策引擎初始化完成")
+    
+    @staticmethod
+    def _get_default_config_path() -> str:
+        """获取默认配置文件路径"""
+        return str(Path(__file__).parent.parent / "configs" / "config.yaml")
+    
+    def _setup_logger(self) -> logging.Logger:
+        """设置日志系统"""
+        log_dir = Path(__file__).parent.parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        return setup_logger(
+            name="trading_decision_engine",
+            log_level="INFO",
+            log_file=str(log_dir / "integrated.log")
+        )
     
     def _init_modules(self):
         """初始化各个模块"""
@@ -382,17 +391,18 @@ class TradingDecisionEngine:
         
         return final_report
     
-    def _save_report(self, report: dict):
-        """保存分析报告"""
+    def _save_report(self, report: dict) -> bool:
+        """
+        保存分析报告
+        
+        Returns:
+            是否保存成功
+        """
         try:
-            from datetime import datetime
-            import json
-            from pathlib import Path
-            
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"integrated_analysis_{report['symbol']}_{timestamp}.json"
             
-            output_path = Path("./trading_decision_system/logs/decisions/")
+            output_path = Path(__file__).parent.parent / "logs" / "decisions"
             output_path.mkdir(parents=True, exist_ok=True)
             
             file_path = output_path / filename
@@ -401,9 +411,11 @@ class TradingDecisionEngine:
                 json.dump(report, f, ensure_ascii=False, indent=2, default=str)
             
             self.logger.info(f"报告已保存: {file_path}")
+            return True
             
         except Exception as e:
-            self.logger.error(f"报告保存失败: {e}")
+            self.logger.error(f"报告保存失败: {e}", exc_info=True)
+            return False
 
     async def analyze_symbol_realtime(
         self,
@@ -980,7 +992,7 @@ class IntegratedService:
             import uvicorn
             
             config = uvicorn.Config(
-                "trading_decision_system.integrated_service:app",
+                "trading_decision_system.service.integrated_service:app",
                 host="0.0.0.0",
                 port=api_port,
                 log_level="info"
