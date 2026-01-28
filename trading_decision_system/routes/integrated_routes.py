@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from pydantic import BaseModel
 from enum import Enum
 
@@ -774,6 +774,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# 创建API路由
+health_router = APIRouter(prefix="", tags=["健康检查"])
+analysis_router = APIRouter(prefix="/api/v1", tags=["分析决策"])
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -795,7 +799,7 @@ async def startup_event():
         raise
 
 
-@app.get("/", tags=["健康检查"])
+@health_router.get("/")
 async def root():
     return {
         "message": "交易决策系统 - 整合服务运行中",
@@ -813,7 +817,7 @@ async def root():
     }
 
 
-@app.get("/health", tags=["健康检查"])
+@health_router.get("/health")
 async def health_check():
     """健康检查接口"""
     if engine:
@@ -826,7 +830,7 @@ async def health_check():
         raise HTTPException(status_code=503, detail="服务未初始化")
 
 
-@app.post("/api/v1/analyze", tags=["分析决策"], response_model=AnalysisResponse)
+@analysis_router.post("/analyze", response_model=AnalysisResponse)
 async def trigger_analysis(request: AnalysisRequest):
     """
     触发分析决策接口（方案一）
@@ -884,7 +888,7 @@ async def trigger_analysis(request: AnalysisRequest):
         raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
 
 
-@app.post("/api/v1/analyze-realtime", tags=["分析决策"], response_model=RealTimeAnalysisResponse)
+@analysis_router.post("/analyze-realtime", response_model=RealTimeAnalysisResponse)
 async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
     """
     触发实时技术分析接口（方案二）
@@ -992,7 +996,7 @@ class IntegratedService:
             import uvicorn
             
             config = uvicorn.Config(
-                "trading_decision_system.service.integrated_service:app",
+                "trading_decision_system.routes.integrated_routes:app",
                 host="0.0.0.0",
                 port=api_port,
                 log_level="info"
@@ -1111,17 +1115,9 @@ class IntegratedService:
             self.logger.error(f"{'='*80}\n")
 
 
-async def main():
-    """主函数"""
-    service = IntegratedService()
-    await service.start()
+# 注册路由
+app.include_router(health_router)
+app.include_router(analysis_router)
 
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n服务已停止")
-    except Exception as e:
-        print(f"服务运行失败: {e}")
-        sys.exit(1)
+
