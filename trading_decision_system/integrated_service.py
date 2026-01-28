@@ -8,6 +8,7 @@ import signal
 import sys
 from pathlib import Path
 from typing import Optional, List
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from enum import Enum
@@ -41,6 +42,24 @@ class AnalysisResponse(BaseModel):
     success: bool
     message: str
     data: Optional[dict] = None
+    error: Optional[str] = None
+
+
+class RealTimeAnalysisRequest(BaseModel):
+    symbol: str
+    period: Optional[str] = "1h"
+    user_message: Optional[str] = ""
+    additional_instructions: Optional[str] = ""
+
+
+class RealTimeAnalysisResponse(BaseModel):
+    success: bool
+    message: str
+    symbol: str
+    period: str
+    analysis_time: str
+    markdown_report: Optional[str] = None
+    model_analyses: Optional[dict] = None
     error: Optional[str] = None
 
 
@@ -386,6 +405,354 @@ class TradingDecisionEngine:
         except Exception as e:
             self.logger.error(f"报告保存失败: {e}")
 
+    async def analyze_symbol_realtime(
+        self,
+        symbol: str,
+        period: str = "1h",
+        user_message: str = "",
+        additional_instructions: str = ""
+    ) -> dict:
+        """
+        实时技术分析（方案二）
+        根据分析指标和prompt，调用多种模型进行分析，汇总结果输出Markdown文档
+        """
+        self.logger.info(f"开始实时分析: {symbol} (period={period})")
+        
+        try:
+            # 步骤1: 获取市场数据
+            market_data = await self._fetch_market_data(symbol)
+            
+            # 步骤2: 计算技术指标
+            indicators = await self._calculate_indicators(market_data)
+            
+            # 步骤3: 获取账户信息
+            account_info = await self._get_account_info(symbol)
+            
+            # 步骤4: 准备LLM输入数据
+            llm_input = self._prepare_realtime_llm_input(
+                symbol,
+                period,
+                market_data,
+                indicators,
+                account_info,
+                user_message,
+                additional_instructions
+            )
+            
+            # 步骤5: 调用多种模型进行分析
+            model_results = await self._run_realtime_llm_analysis(llm_input)
+            
+            # 步骤6: 汇总分析结果
+            final_analysis = await self._aggregate_realtime_analysis(model_results, symbol)
+            
+            # 步骤7: 生成Markdown报告
+            markdown_report = self._generate_markdown_report(final_analysis, model_results)
+            
+            # 步骤8: 保存报告
+            self._save_markdown_report(symbol, markdown_report)
+            
+            self.logger.info(f"实时分析完成: {symbol}")
+            
+            return {
+                "success": True,
+                "symbol": symbol,
+                "period": period,
+                "analysis_time": llm_input['current_time_utc'],
+                "markdown_report": markdown_report,
+                "model_analyses": model_results
+            }
+            
+        except Exception as e:
+            self.logger.error(f"实时分析失败 {symbol}: {e}")
+            raise
+    
+    def _prepare_realtime_llm_input(
+        self,
+        symbol: str,
+        period: str,
+        market_data: dict,
+        indicators: dict,
+        account_info: dict,
+        user_message: str,
+        additional_instructions: str
+    ) -> dict:
+        """准备实时分析的LLM输入数据"""
+        from datetime import datetime, timezone
+        
+        current_time_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        
+        # K线摘要
+        klines_summary = self._generate_klines_summary(market_data['klines_1h'])
+        
+        # 技术指标摘要
+        indicators_summary = self._generate_indicators_summary(indicators, period)
+        
+        # 资金流指标摘要
+        flow_indicators_summary = self._generate_flow_indicators_summary(market_data)
+        
+        # 持仓情况摘要
+        positions_summary = self._generate_positions_summary(account_info, symbol)
+        
+        return {
+            "symbol": symbol,
+            "period": period,
+            "current_time_utc": current_time_utc,
+            "current_price": market_data['ticker']['price'],
+            "change_24h": market_data['ticker_24h']['price_change_percent'],
+            "volume_24h": market_data['ticker_24h']['volume'],
+            "open_interest": "N/A",  # 需要从API获取
+            "funding_rate": "N/A",  # 需要从API获取
+            "kline_count": 20,
+            "klines_summary": klines_summary,
+            "indicators_summary": indicators_summary,
+            "flow_indicators_summary": flow_indicators_summary,
+            "positions_summary": positions_summary,
+            "user_message": user_message,
+            "additional_instructions": additional_instructions
+        }
+    
+    def _generate_klines_summary(self, klines):
+        """生成K线摘要"""
+        if klines.empty:
+            return "暂无K线数据"
+        
+        summary_lines = []
+        recent_klines = klines.tail(20)
+        
+        for i, (idx, row) in enumerate(recent_klines.iterrows()):
+            time_str = idx.strftime("%H:%M")
+            candle_type = "🟢" if row['close'] >= row['open'] else "🔴"
+            summary_lines.append(f"{time_str}: {candle_type} {row['open']:.4f} → {row['close']:.4f} (高: {row['high']:.4f}, 低: {row['low']:.4f})")
+        
+        return "\n".join(summary_lines)
+    
+    def _generate_indicators_summary(self, indicators, period):
+        """生成技术指标摘要"""
+        period_indicators = indicators.get(period, indicators.get('1h', {}))
+        
+        summary = []
+        
+        # 趋势指标
+        if 'trend' in period_indicators:
+            trend = period_indicators['trend']
+            summary.append(f"### 趋势指标")
+            summary.append(f"- 趋势方向: {trend.get('trend', '未知')}")
+            summary.append(f"- 趋势强度: {trend.get('strength', 0)}/100")
+        
+        # RSI
+        if 'rsi' in period_indicators:
+            rsi = period_indicators['rsi']
+            summary.append(f"\n### RSI")
+            summary.append(f"- RSI数值: {rsi.get('value', 0):.2f}")
+            summary.append(f"- RSI状态: {rsi.get('status', '未知')}")
+        
+        # MACD
+        if 'macd' in period_indicators:
+            macd = period_indicators['macd']
+            summary.append(f"\n### MACD")
+            summary.append(f"- MACD线: {macd.get('macd', 0):.4f}")
+            summary.append(f"- 信号线: {macd.get('signal', 0):.4f}")
+            summary.append(f"- 柱状图: {macd.get('histogram', 0):.4f}")
+        
+        # 均线
+        if 'ma' in period_indicators:
+            ma = period_indicators['ma']
+            summary.append(f"\n### 均线")
+            for key, value in ma.items():
+                if value:
+                    summary.append(f"- {key.upper()}: {value:.4f}")
+        
+        # 布林带
+        if 'bollinger' in period_indicators:
+            bb = period_indicators['bollinger']
+            summary.append(f"\n### 布林带")
+            summary.append(f"- 上轨: {bb.get('upper', 0):.4f}")
+            summary.append(f"- 中轨: {bb.get('middle', 0):.4f}")
+            summary.append(f"- 下轨: {bb.get('lower', 0):.4f}")
+        
+        return "\n".join(summary)
+    
+    def _generate_flow_indicators_summary(self, market_data):
+        """生成资金流指标摘要"""
+        ticker_24h = market_data.get('ticker_24h', {})
+        
+        summary = []
+        summary.append(f"- 24小时成交量: {ticker_24h.get('volume', 0):.2f}")
+        summary.append(f"- 24小时成交额: {ticker_24h.get('quote_volume', 0):.2f} USDT")
+        summary.append(f"- 最高价: {ticker_24h.get('high_price', 0):.4f}")
+        summary.append(f"- 最低价: {ticker_24h.get('low_price', 0):.4f}")
+        
+        return "\n".join(summary)
+    
+    def _generate_positions_summary(self, account_info: dict, symbol: str):
+        """生成持仓情况摘要"""
+        balances = account_info.get('balances', {})
+        base_asset = symbol.replace('USDT', '')
+        
+        summary = []
+        summary.append(f"- 可用USDT余额: {balances.get('USDT', 0):.4f}")
+        summary.append(f"- 可用{base_asset}余额: {balances.get(base_asset, 0):.6f}")
+        summary.append(f"- 总资产(USDT): {account_info.get('total_assets_usdt', 0):.4f}")
+        
+        trade_stats = account_info.get('trade_statistics', {})
+        if trade_stats:
+            summary.append(f"\n- 总交易次数: {trade_stats.get('total_trades', 0)}")
+            summary.append(f"- 胜率: {trade_stats.get('win_rate', 0):.2f}%")
+        
+        return "\n".join(summary)
+    
+    async def _run_realtime_llm_analysis(self, llm_input: dict) -> dict:
+        """运行实时分析的LLM调用"""
+        try:
+            # 使用所有可用模型进行分析
+            model_results = await self.llm_analyzer.async_analyze_all("technical", llm_input)
+            
+            # 处理Markdown格式的返回结果
+            # 现在LLM已经直接返回Markdown格式，不需要额外处理
+            processed_results = {}
+            for model_name, result in model_results.items():
+                if isinstance(result, dict) and not result.get("error"):
+                    # LLM已直接返回Markdown格式
+                    processed_results[model_name] = {
+                        "markdown_analysis": result.get("analysis", ""),
+                        "structured_result": result,
+                        "success": True,
+                        "format": result.get("format", "markdown")
+                    }
+                else:
+                    processed_results[model_name] = result
+            
+            return processed_results
+            
+        except Exception as e:
+            self.logger.error(f"实时LLM分析失败: {e}")
+            raise
+    
+    async def _aggregate_realtime_analysis(self, model_results: dict, symbol: str) -> str:
+        """汇总多个模型的分析结果"""
+        try:
+            # 准备汇总prompt
+            aggregate_prompt = self._prepare_aggregate_prompt(model_results, symbol)
+            
+            # 获取第一个可用的模型进行汇总分析
+            enabled_models = self.llm_analyzer.config.get_all_enabled_models()
+            if enabled_models:
+                primary_model = next(iter(enabled_models.keys()))
+                self.logger.info(f"使用 {primary_model} 进行汇总分析")
+                
+                # 使用async_analyze方法进行汇总
+                aggregated_result = await self.llm_analyzer.async_analyze(
+                    primary_model, 
+                    "technical",  # 使用technical角色进行汇总
+                    aggregate_prompt
+                )
+                
+                return aggregated_result.get("analysis", aggregated_result.get("response", ""))
+            else:
+                self.logger.warning("没有可用的模型进行汇总分析")
+                raise Exception("没有可用的模型")
+            
+        except Exception as e:
+            self.logger.error(f"汇总分析失败: {e}")
+            # 如果汇总失败，返回第一个模型的Markdown分析结果
+            if model_results:
+                first_model = next(iter(model_results.keys()))
+                first_result = model_results[first_model]
+                if isinstance(first_result, dict) and not first_result.get("error"):
+                    return first_result.get("markdown_analysis", first_result.get("analysis", ""))
+                return str(first_result)
+            return ""
+    
+    def _prepare_aggregate_prompt(self, model_results: dict, symbol: str) -> dict:
+        """准备汇总分析的prompt"""
+        from datetime import datetime, timezone
+        
+        current_time_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        
+        # 收集所有模型的Markdown分析结果
+        analyses_summary = []
+        for model_name, result in model_results.items():
+            if isinstance(result, dict) and not result.get("error"):
+                # 提取Markdown分析内容
+                markdown_analysis = result.get("markdown_analysis", 
+                                            result.get("analysis", 
+                                            result.get("response", "")))
+                analyses_summary.append(f"\n## {model_name.upper()} 分析结果\n{markdown_analysis}")
+        
+        return {
+            "symbol": symbol,
+            "current_time_utc": current_time_utc,
+            "model_analyses": "\n".join(analyses_summary),
+            "user_message": "请汇总以下多个AI模型对同一交易标的的技术分析结果，综合各模型的观点，输出最终的统一分析报告。"
+        }
+    
+    def _generate_markdown_report(self, final_analysis: str, model_results: dict) -> str:
+        """生成最终的Markdown报告"""
+        report_parts = [
+            "# 📈 加密货币技术分析报告",
+            "---",
+            "",
+            "## 📋 报告摘要",
+            "本报告基于多个AI模型的技术分析结果汇总而成，为您提供全面的市场洞察和交易建议。",
+            "",
+            "---",
+            "",
+            "## 🎯 综合分析结论",
+            final_analysis,
+            "",
+            "---",
+            "",
+            "## 🤖 各模型分析详情",
+            ""
+        ]
+        
+        # 添加各模型的详细分析（提取Markdown内容）
+        for model_name, result in model_results.items():
+            if isinstance(result, dict) and not result.get("error"):
+                # 提取Markdown分析内容
+                markdown_analysis = result.get("markdown_analysis", 
+                                            result.get("analysis", 
+                                            result.get("response", "")))
+                report_parts.append(f"### {model_name.upper()}")
+                report_parts.append(markdown_analysis)
+                report_parts.append("")
+            else:
+                # 处理错误情况
+                report_parts.append(f"### {model_name.upper()}")
+                report_parts.append(f"❌ 分析失败: {result.get('error', '未知错误') if isinstance(result, dict) else str(result)}")
+                report_parts.append("")
+        
+        # 添加免责声明
+        report_parts.append("---")
+        report_parts.append("## ⚠️ 免责声明")
+        report_parts.append("本报告仅供参考，不构成任何投资建议。加密货币交易存在高风险，请谨慎决策。")
+        report_parts.append("")
+        report_parts.append("*报告生成时间: " + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") + "*")
+        
+        return "\n".join(report_parts)
+    
+    def _save_markdown_report(self, symbol: str, markdown_report: str):
+        """保存Markdown报告"""
+        try:
+            from datetime import datetime
+            from pathlib import Path
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"realtime_analysis_{symbol}_{timestamp}.md"
+            
+            output_path = Path("./trading_decision_system/logs/reports/")
+            output_path.mkdir(parents=True, exist_ok=True)
+            
+            file_path = output_path / filename
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_report)
+            
+            self.logger.info(f"Markdown报告已保存: {file_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Markdown报告保存失败: {e}")
+
 
 # 全局变量
 engine: Optional[TradingDecisionEngine] = None
@@ -423,11 +790,13 @@ async def root():
         "version": "1.0.0",
         "features": [
             "定时任务 (每5分钟)",
-            "API接口触发分析"
+            "API接口触发分析 (方案一)",
+            "实时技术分析 (方案二)"
         ],
         "endpoints": [
             "/health - 健康检查",
-            "/api/v1/analyze - 触发分析决策"
+            "/api/v1/analyze - 触发分析决策 (方案一)",
+            "/api/v1/analyze-realtime - 实时技术分析 (方案二)"
         ]
     }
 
@@ -439,7 +808,7 @@ async def health_check():
         return {
             "status": "healthy",
             "message": "整合服务运行正常",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     else:
         raise HTTPException(status_code=503, detail="服务未初始化")
@@ -448,7 +817,7 @@ async def health_check():
 @app.post("/api/v1/analyze", tags=["分析决策"], response_model=AnalysisResponse)
 async def trigger_analysis(request: AnalysisRequest):
     """
-    触发分析决策接口
+    触发分析决策接口（方案一）
     
     Args:
         symbols: 要分析的交易对列表
@@ -501,6 +870,61 @@ async def trigger_analysis(request: AnalysisRequest):
         if engine:
             engine.logger.error(f"API请求处理失败: {e}")
         raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
+
+
+@app.post("/api/v1/analyze-realtime", tags=["分析决策"], response_model=RealTimeAnalysisResponse)
+async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
+    """
+    触发实时技术分析接口（方案二）
+    
+    Args:
+        symbol: 要分析的交易对
+        period: 分析周期 (1h, 4h, 1d)
+        user_message: 用户自定义问题
+        additional_instructions: 额外分析要求
+        
+    Returns:
+        实时分析结果（包含Markdown报告）
+    """
+    try:
+        if not engine:
+            raise HTTPException(status_code=503, detail="分析引擎未初始化")
+        
+        if not request.symbol:
+            raise HTTPException(status_code=400, detail="交易对不能为空")
+        
+        engine.logger.info(f"收到实时分析请求: symbol={request.symbol}, period={request.period}")
+        
+        result = await engine.analyze_symbol_realtime(
+            symbol=request.symbol,
+            period=request.period,
+            user_message=request.user_message,
+            additional_instructions=request.additional_instructions
+        )
+        
+        return RealTimeAnalysisResponse(
+            success=True,
+            message="实时分析完成",
+            symbol=result['symbol'],
+            period=result['period'],
+            analysis_time=result['analysis_time'],
+            markdown_report=result['markdown_report'],
+            model_analyses=result['model_analyses']
+        )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        if engine:
+            engine.logger.error(f"实时分析请求处理失败: {e}")
+        return RealTimeAnalysisResponse(
+            success=False,
+            message="实时分析失败",
+            symbol=request.symbol,
+            period=request.period,
+            analysis_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            error=str(e)
+        )
 
 
 class IntegratedService:

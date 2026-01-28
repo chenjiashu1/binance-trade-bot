@@ -116,109 +116,100 @@ class PromptTemplates:
     
     # 技术分析师Prompt模板
     TECHNICAL_PROMPT = """
-【角色】你是技术分析专家，专注于图表模式和指标信号
-【任务】基于多时间框架技术分析，生成交易信号
+【角色】你是一位专业的技术分析师和交易顾问，专注于图表模式和指标信号
+【任务】请基于以下K线图表数据和技术指标，提供可操作的交易见解。
 
-【输入数据】
-交易对: {symbol}
-当前价格: {current_price}
+=== 分析背景 ===
+交易标的：{symbol}
+时间周期（主分析周期）：{period}
+分析时间（UTC）：{current_time_utc}
 
-多时间框架数据:
+=== 当前市场数据 ===
+当前价格： $ {current_price}
+24小时涨跌幅：{change_24h}%
+24小时成交量： $ {volume_24h}
+未平仓合约（Open Interest）： $ {open_interest}
+资金费率：{funding_rate}%
+
+=== K线数据（最近 {kline_count} 根K线） ===
+{klines_summary}
+
+=== 技术指标汇总 ===
+{indicators_summary}
+
+=== 市场资金流指标 ===
+{flow_indicators_summary}
+
+=== 持仓情况 ===
+{positions_summary}
+
+=== 多时间框架详细数据 ===
 
 1小时图:
-- 趋势: {trend_1h} (强度: {trend_strength_1h}%)
-- RSI: {rsi_1h} ({rsi_status_1h})
+- 趋势: {trend_1h}（强度: {trend_strength_1h}%）
+- RSI: {rsi_1h}（状态: {rsi_status_1h}）
 - MACD: {macd_1h}, Signal: {signal_1h}, Histogram: {histogram_1h}
 - MA20: {ma20_1h}, MA50: {ma50_1h}
 - 布林带: 上轨={bb_upper_1h}, 中轨={bb_middle_1h}, 下轨={bb_lower_1h}
 
 4小时图:
-- 趋势: {trend_4h} (强度: {trend_strength_4h}%)
-- RSI: {rsi_4h} ({rsi_status_4h})
+- 趋势: {trend_4h}（强度: {trend_strength_4h}%）
+- RSI: {rsi_4h}（状态: {rsi_status_4h}）
 - MACD: {macd_4h}, Signal: {signal_4h}, Histogram: {histogram_4h}
 - MA20: {ma20_4h}, MA50: {ma50_4h}, MA200: {ma200_4h}
 - 布林带: 上轨={bb_upper_4h}, 中轨={bb_middle_4h}, 下轨={bb_lower_4h}
 
 日线图:
-- 趋势: {trend_1d} (强度: {trend_strength_1d}%)
-- RSI: {rsi_1d} ({rsi_status_1d})
+- 趋势: {trend_1d}（强度: {trend_strength_1d}%）
+- RSI: {rsi_1d}（状态: {rsi_status_1d}）
 - MACD: {macd_1d}, Signal: {signal_1d}, Histogram: {histogram_1d}
 - MA20: {ma20_1d}, MA50: {ma50_1d}, MA200: {ma200_1d}
 - 布林带: 上轨={bb_upper_1d}, 中轨={bb_middle_1d}, 下轨={bb_lower_1d}
 
-【分析要求】
+=== 用户问题（如有） ===
+{user_message}
 
-1. 多时间框架分析
-- 各时间框架趋势一致性
-- 主要趋势方向（以较高时间框架为准）
-- 短期回调机会
+=== 分析要求 ===
+请严格基于上述数据，完成以下分析，并以 **Markdown 格式** 输出正文内容，**同时在最后附上一个完整的 JSON 结构化结果**（格式见下方“输出格式”）。
 
-2. 指标信号分析
-- RSI超买/超卖情况
-- MACD交叉信号
-- 均线支撑/阻力
-- 布林带突破信号
+## 📊 趋势分析（多时间框架）
+- 判断各时间框架（1H/4H/1D）的趋势方向与强度
+- 评估趋势一致性：是否形成共振？是否存在背离？
+- 明确主导趋势（以较高时间框架为准），并指出短期回调或延续机会
 
-3. 形态识别
-- 当前价格形态（头肩顶/底、三角形、旗形等）
-- 关键支撑/阻力位
-- 趋势线分析
+## 🎯 关键价格位
+- 即时支撑 / 主要支撑位（价格可能反弹区域）
+- 即时阻力 / 主要阻力位（价格可能遇阻区域）
+- 需重点关注的突破/跌破关键价位（结合布林带、均线、历史高低点）
 
-4. 交易信号生成
-- 买入信号（强烈/中等/微弱/无）
-- 卖出信号（强烈/中等/微弱/无）
-- 持仓建议
+## 📈 技术信号解读
+- RSI 是否处于超买/超卖区域？是否存在背离？
+- MACD 是否出现金叉/死叉？柱状图动能如何变化？
+- 均线系统（MA20/50/200）是否构成支撑或阻力？
+- 布林带是否收口/开口？价格是否触及上下轨？
 
-【输出格式】
-{{
-    "symbol": "交易对",
-    "analysis_time": "分析时间",
-    "timeframe_analysis": {{
-        "1h": {{
-            "trend": "趋势方向",
-            "strength": 强度,
-            "bias": "bullish/bearish/neutral"
-        }},
-        "4h": {{
-            "trend": "趋势方向",
-            "strength": 强度,
-            "bias": "bullish/bearish/neutral"
-        }},
-        "1d": {{
-            "trend": "趋势方向",
-            "strength": 强度,
-            "bias": "bullish/bearish/neutral"
-        }}
-    }},
-    "signal_strength": {{
-        "bullish_signals": [
-            {{"indicator": "指标名称", "strength": "strong/medium/weak", "value": 数值}}
-        ],
-        "bearish_signals": [
-            {{"indicator": "指标名称", "strength": "strong/medium/weak", "value": 数值}}
-        ]
-    }},
-    "patterns": {{
-        "identified_patterns": ["形态1", "形态2"],
-        "pattern_confidence": 0-100
-    }},
-    "key_levels": {{
-        "immediate_support": 价格,
-        "major_support": 价格,
-        "immediate_resistance": 价格,
-        "major_resistance": 价格
-    }},
-    "trading_signals": {{
-        "buy_signal": "strong/medium/weak/none",
-        "sell_signal": "strong/medium/weak/none",
-        "recommendation": "buy/sell/hold/wait",
-        "entry_price": 建议入场价,
-        "take_profit_levels": [目标1, 目标2, 目标3],
-        "stop_loss_level": 止损价
-    }},
-    "confidence_score": 0-100,
-    "notes": "重要注意事项"
-}}
+## 🔍 图表形态识别
+- 当前是否存在经典技术形态（如头肩顶/底、三角形、旗形、双顶/底等）？
+- 形态置信度如何？是否有量能配合？
+- 趋势线或通道是否有效？
+
+## 💡 交易建议
+- 推荐操作：做多 / 做空 / 持有 / 观望
+- 入场区间（建议价格范围）
+- 止损位（控制风险）
+- 止盈目标（至少两个层级）
+
+## ⚠️ 风险提示
+- 当前市场波动性评估
+- 需警惕的主要风险（如指标失效、流动性不足、外部事件等）
+- 哪些价格行为或数据将导致本分析结论失效？
+
+{additional_instructions}
+
+**重要原则**：
+- 所有结论必须基于提供的数据，不得臆测。
+- 同时考虑看涨与看跌情景，保持中立客观。
+- 若数据不足以支持明确信号，请明确说明“无明确信号”或“建议观望”。
     """
     
     # 风险评估师Prompt模板
@@ -370,10 +361,32 @@ class PromptTemplates:
             格式化后的Prompt
         """
         return self.TECHNICAL_PROMPT.format(
+            # === 分析背景 ===
             symbol=data.get("symbol", "BTCUSDT"),
-            current_price=data.get("current_price", 0),
+            period=data.get("period", "1h"),
+            current_time_utc=data.get("current_time_utc", "2024-01-01 00:00:00 UTC"),
             
-            # 1小时图
+            # === 当前市场数据 ===
+            current_price=data.get("current_price", 0),
+            change_24h=data.get("change_24h", 0),
+            volume_24h=data.get("volume_24h", 0),
+            open_interest=data.get("open_interest", "N/A"),
+            funding_rate=data.get("funding_rate", "N/A"),
+            
+            # === K线数据 ===
+            kline_count=data.get("kline_count", 20),
+            klines_summary=data.get("klines_summary", "暂无K线数据"),
+            
+            # === 技术指标汇总 ===
+            indicators_summary=data.get("indicators_summary", "暂无指标数据"),
+            
+            # === 市场资金流指标 ===
+            flow_indicators_summary=data.get("flow_indicators_summary", "暂无资金流数据"),
+            
+            # === 持仓情况 ===
+            positions_summary=data.get("positions_summary", "暂无持仓数据"),
+            
+            # === 多时间框架详细数据 - 1小时图 ===
             trend_1h=data.get("trend_1h", "sideways"),
             trend_strength_1h=data.get("trend_strength_1h", 0),
             rsi_1h=data.get("rsi_1h", 50),
@@ -387,7 +400,7 @@ class PromptTemplates:
             bb_middle_1h=data.get("bb_middle_1h", 0),
             bb_lower_1h=data.get("bb_lower_1h", 0),
             
-            # 4小时图
+            # === 多时间框架详细数据 - 4小时图 ===
             trend_4h=data.get("trend_4h", "sideways"),
             trend_strength_4h=data.get("trend_strength_4h", 0),
             rsi_4h=data.get("rsi_4h", 50),
@@ -402,7 +415,7 @@ class PromptTemplates:
             bb_middle_4h=data.get("bb_middle_4h", 0),
             bb_lower_4h=data.get("bb_lower_4h", 0),
             
-            # 日线图
+            # === 多时间框架详细数据 - 日线图 ===
             trend_1d=data.get("trend_1d", "sideways"),
             trend_strength_1d=data.get("trend_strength_1d", 0),
             rsi_1d=data.get("rsi_1d", 50),
@@ -415,7 +428,13 @@ class PromptTemplates:
             ma200_1d=data.get("ma200_1d", 0),
             bb_upper_1d=data.get("bb_upper_1d", 0),
             bb_middle_1d=data.get("bb_middle_1d", 0),
-            bb_lower_1d=data.get("bb_lower_1d", 0)
+            bb_lower_1d=data.get("bb_lower_1d", 0),
+            
+            # === 用户问题（如有） ===
+            user_message=data.get("user_message", "无"),
+            
+            # === 额外分析要求 ===
+            additional_instructions=data.get("additional_instructions", "")
         )
     
     def get_risk_prompt(self, data: Dict[str, Any]) -> str:

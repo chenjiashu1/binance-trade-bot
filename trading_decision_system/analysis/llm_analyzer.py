@@ -107,33 +107,65 @@ class LLMAnalyzer(LoggerMixin):
             
             start_time = time.time()
             
-            response = self.clients[model_name].chat.completions.create(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": "你是专业的数字货币交易分析师，只输出JSON格式的分析结果。"},
-                    {"role": "user", "content": prompt}
-                ],
-                extra_body={"enable_thinking": True},
-                temperature=0.3,
-                max_tokens=2000,
-                response_format={"type": "json_object"}
-            )
-            
-            elapsed_time = time.time() - start_time
-            self.logger.info(f"{model_name} 分析完成，耗时: {elapsed_time:.2f}秒")
-            
-            # 解析响应
-            result_content = response.choices[0].message.content
-            result = self.prompt_templates.validate_json_output(result_content)
-            
-            if result is None:
-                raise AnalysisError(f"{model_name} 返回无效JSON", model=model_name)
-            
-            # 添加元数据
-            result["model_name"] = model_name
-            result["role"] = role
-            result["analysis_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            result["response_time_seconds"] = round(elapsed_time, 2)
+            # 根据角色决定输出格式
+            if role == "technical":
+                # technical角色返回Markdown格式
+                response = self.clients[model_name].chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": "你是专业的数字货币交易分析师，输出详细的Markdown格式技术分析报告。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    extra_body={"enable_thinking": True},
+                    temperature=0.3,
+                    max_tokens=4000  # 增加token限制以容纳详细的Markdown报告
+                )
+                
+                result_content = response.choices[0].message.content
+                
+                # 计算耗时
+                elapsed_time = time.time() - start_time
+                self.logger.info(f"{model_name} 分析完成，耗时: {elapsed_time:.2f}秒")
+                
+                # 返回Markdown格式的结果
+                result = {
+                    "analysis": result_content,
+                    "model_name": model_name,
+                    "role": role,
+                    "analysis_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "response_time_seconds": round(elapsed_time, 2),
+                    "format": "markdown"
+                }
+            else:
+                # 其他角色返回JSON格式
+                response = self.clients[model_name].chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": "你是专业的数字货币交易分析师，只输出JSON格式的分析结果。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    extra_body={"enable_thinking": True},
+                    temperature=0.3,
+                    max_tokens=2000,
+                    response_format={"type": "json_object"}
+                )
+                
+                result_content = response.choices[0].message.content
+                result = self.prompt_templates.validate_json_output(result_content)
+                
+                if result is None:
+                    raise AnalysisError(f"{model_name} 返回无效JSON", model=model_name)
+                
+                # 计算耗时
+                elapsed_time = time.time() - start_time
+                self.logger.info(f"{model_name} 分析完成，耗时: {elapsed_time:.2f}秒")
+                
+                # 添加元数据
+                result["model_name"] = model_name
+                result["role"] = role
+                result["analysis_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                result["response_time_seconds"] = round(elapsed_time, 2)
+                result["format"] = "json"
             
             return result
             
@@ -181,31 +213,64 @@ class LLMAnalyzer(LoggerMixin):
             
             start_time = time.time()
             
-            response = await self.async_clients[model_name].chat.completions.create(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": "你是专业的数字货币交易分析师，只输出JSON格式的分析结果。"},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                extra_body={"enable_thinking": True},
-                max_tokens=2000,
-                response_format={"type": "json_object"}
-            )
-            
-            elapsed_time = time.time() - start_time
-            self.logger.info(f"{model_name} 异步分析完成，耗时: {elapsed_time:.2f}秒")
-            
-            result_content = response.choices[0].message.content
-            result = self.prompt_templates.validate_json_output(result_content)
-            
-            if result is None:
-                raise AnalysisError(f"{model_name} 返回无效JSON", model=model_name)
-            
-            result["model_name"] = model_name
-            result["role"] = role
-            result["analysis_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            result["response_time_seconds"] = round(elapsed_time, 2)
+            # 根据角色决定输出格式
+            if role == "technical":
+                # technical角色返回Markdown格式
+                response = await self.async_clients[model_name].chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": "你是专业的数字货币交易分析师，输出详细的Markdown格式技术分析报告。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    extra_body={"enable_thinking": True},
+                    max_tokens=4000  # 增加token限制以容纳详细的Markdown报告
+                )
+                
+                result_content = response.choices[0].message.content
+                
+                # 计算耗时
+                elapsed_time = time.time() - start_time
+                self.logger.info(f"{model_name} 异步分析完成，耗时: {elapsed_time:.2f}秒")
+                
+                # 返回Markdown格式的结果
+                result = {
+                    "analysis": result_content,
+                    "model_name": model_name,
+                    "role": role,
+                    "analysis_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "response_time_seconds": round(elapsed_time, 2),
+                    "format": "markdown"
+                }
+            else:
+                # 其他角色返回JSON格式
+                response = await self.async_clients[model_name].chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": "你是专业的数字货币交易分析师，只输出JSON格式的分析结果。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    extra_body={"enable_thinking": True},
+                    max_tokens=2000,
+                    response_format={"type": "json_object"}
+                )
+                
+                result_content = response.choices[0].message.content
+                result = self.prompt_templates.validate_json_output(result_content)
+                
+                if result is None:
+                    raise AnalysisError(f"{model_name} 返回无效JSON", model=model_name)
+                
+                # 计算耗时
+                elapsed_time = time.time() - start_time
+                self.logger.info(f"{model_name} 异步分析完成，耗时: {elapsed_time:.2f}秒")
+                
+                result["model_name"] = model_name
+                result["role"] = role
+                result["analysis_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                result["response_time_seconds"] = round(elapsed_time, 2)
+                result["format"] = "json"
             
             return result
             
