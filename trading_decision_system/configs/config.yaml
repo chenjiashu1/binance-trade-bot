@@ -48,7 +48,7 @@ analysis:
   schedule:
     - time: "*/5:00"
       type: "technical"
-      enabled: true
+      enabled: false
   
   risk_limits:
     max_position_percent: 20

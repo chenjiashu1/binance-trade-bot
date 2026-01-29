@@ -179,18 +179,64 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
     async def _aggregate_realtime_analysis(self, model_results: dict, symbol: str) -> dict:
         """聚合实时分析结果"""
         if not model_results:
-            return {"error": "没有分析结果"}
+            raise Exception("没有分析结果")
         
-        # 简单聚合：取第一个成功的结果
+        # 简单聚合：取第一个成功的结果作为临时聚合结果
+        temporary_result = None
         for model_name, result in model_results.items():
-            if result.get('success'):
-                return {
+            # 检查模型是否分析成功：如果结果中没有 success 字段或者 success 字段为 True，则认为分析成功
+            if not result.get('success') is False:
+                temporary_result = {
                     "model": model_name,
                     "analysis": result.get('analysis', {}),
                     "recommendation": result.get('recommendation', {})
                 }
+                break
         
-        return {"error": "所有模型分析失败"}
+        if not temporary_result:
+            raise Exception("所有模型分析失败")
+        
+        # 使用 deepseek-r1 聚合分析各个模型的结果
+        self.logger.info(f"使用 deepseek-r1 聚合分析模型结果 - {symbol}")
+        
+        # 准备聚合分析的 prompt
+        prompt = f"【角色】你是专业的交易策略分析师，拥有10年以上交易经验\n"
+        prompt += f"【任务】分析以下多个AI模型对同一交易对的分析结果，然后给出最终的综合分析和交易建议\n\n"
+        prompt += f"=== 分析背景 ===\n"
+        prompt += f"交易标的：{symbol}\n\n"
+        prompt += f"=== 任务要求 ===\n"
+        prompt += "请作为专业的交易策略分析师，分析以下多个AI模型对同一交易对的分析结果，然后给出最终的综合分析和交易建议。\n\n"
+        prompt += "分析要求：\n"
+        prompt += "1. 详细分析每个模型的观点和理由\n"
+        prompt += "2. 比较不同模型之间的异同点\n"
+        prompt += "3. 基于所有模型的分析，给出最终的综合分析\n"
+        prompt += "4. 提供明确的交易建议，包括买入/卖出/持有决策\n"
+        prompt += "5. 分析交易的风险和潜在收益\n"
+        prompt += "6. 给出具体的入场点、止损点和止盈点建议\n\n"
+        prompt += "=== 模型分析结果 ===\n"
+        
+        for model_name, result in model_results.items():
+            prompt += f"### {model_name}\n"
+            prompt += f"- 状态: 成功\n"
+            if 'analysis' in result:
+                prompt += f"- 分析: {result['analysis']}\n"
+            prompt += "\n"
+        
+        self.logger.info(f"{symbol}-聚合分析prompt准备完成 - {prompt}")
+        # 调用 deepseek-r1 模型进行聚合分析
+        deepseek_result = await self.llm_analyzer.async_analyze("deepseek", "technical", prompt)
+        
+        # 检查 deepseek-r1 分析是否成功：如果结果中没有 success 字段或者 success 字段为 True，则认为分析成功
+        if not deepseek_result.get('success') is False:
+            self.logger.info(f"deepseek-r1 聚合分析完成 - {symbol}")
+            return {
+                "model": "deepseek-r1 (聚合分析)",
+                "analysis": deepseek_result.get('analysis', {}),
+                "recommendation": deepseek_result.get('recommendation', {})
+            }
+        else:
+            self.logger.warning(f"deepseek-r1 聚合分析失败，使用临时聚合结果 - {symbol}")
+            return temporary_result
     
     def _generate_markdown_report(self, final_analysis: dict, model_results: dict) -> str:
         """生成Markdown报告"""
@@ -204,6 +250,10 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         # 分析摘要
         report.append("## 📊 分析摘要")
         report.append(f"- 分析模型: {final_analysis.get('model', 'Unknown')}")
+        if 'recommendation' in final_analysis:
+            recommendation = final_analysis['recommendation']
+            report.append(f"- 最终建议: {recommendation.get('action', 'hold')}")
+            report.append(f"- 置信度: {recommendation.get('confidence', 0)}")
         report.append("")
         
         # 详细分析
@@ -219,17 +269,49 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             report.append("## 💡 交易建议")
             report.append(f"- 操作: {recommendation.get('action', 'hold')}")
             report.append(f"- 置信度: {recommendation.get('confidence', 0)}")
+            report.append(f"- 分析理由: {recommendation.get('reason', '无详细理由')}")
             report.append("")
         
-        # 模型对比
-        report.append("## 🤖 模型对比")
+        # 模型详细结果
+        report.append("## 🤖 模型详细结果")
         for model_name, result in model_results.items():
+            report.append(f"### {model_name}")
             if result.get('success'):
-                action = result.get('recommendation', {}).get('action', 'hold')
-                confidence = result.get('recommendation', {}).get('confidence', 0)
-                report.append(f"- **{model_name}**: {action} (置信度: {confidence})")
+                report.append(f"- 状态: 成功")
+                if 'analysis' in result:
+                    report.append(f"- 分析: {result['analysis']}")
+                if 'recommendation' in result:
+                    recommendation = result['recommendation']
+                    report.append(f"- 建议: {recommendation.get('action', 'hold')}")
+                    report.append(f"- 置信度: {recommendation.get('confidence', 0)}")
+                    if 'reason' in recommendation:
+                        report.append(f"- 理由: {recommendation['reason']}")
             else:
-                report.append(f"- **{model_name}**: 失败 ({result.get('error', 'Unknown error')})")
+                report.append(f"- 状态: 失败")
+                report.append(f"- 错误: {result.get('error', 'Unknown error')}")
+            report.append("")
+        
+        # 风险分析
+        report.append("## ⚠️ 风险分析")
+        report.append("- 市场风险: 加密货币市场波动较大，请谨慎交易")
+        report.append("- 模型风险: AI模型分析基于历史数据，可能无法预测突发市场事件")
+        report.append("- 执行风险: 交易执行价格可能与分析时的价格存在差异")
+        report.append("")
+        
+        # 交易策略建议
+        report.append("## 📝 交易策略建议")
+        report.append("1. **资金管理**: 建议使用不超过总资金20%的资金进行单笔交易")
+        report.append("2. **止损设置**: 建议设置5-10%的止损位，控制单笔交易风险")
+        report.append("3. **止盈设置**: 建议设置15-30%的止盈位，确保收益")
+        report.append("4. **仓位管理**: 根据市场波动性调整仓位大小")
+        report.append("5. **监控频率**: 建议至少每4小时监控一次交易情况")
+        report.append("")
+        
+        # 免责声明
+        report.append("## 📄 免责声明")
+        report.append("本分析报告仅供参考，不构成任何投资建议。")
+        report.append("交易决策请结合个人风险承受能力和市场实际情况。")
+        report.append("过往表现不代表未来结果，投资有风险，入市需谨慎。")
         
         return "\n".join(report)
     
@@ -307,6 +389,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             
             # 步骤6: 汇总分析结果
             self.logger.info(f"步骤6: 汇总分析结果 - {symbol}")
+            print(f"步骤6: 汇总分析结果 - {symbol}")
             final_analysis = await self._aggregate_realtime_analysis(model_results, symbol)
             self.logger.info(f"分析结果汇总完成: {symbol}, 选中模型: {final_analysis.get('model', 'Unknown')}")
             

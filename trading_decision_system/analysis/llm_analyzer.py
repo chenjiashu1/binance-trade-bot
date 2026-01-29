@@ -191,7 +191,6 @@ class LLMAnalyzer(LoggerMixin):
         self,
         model_name: str,
         role: str,
-        data: Dict[str, Any],
         prompt: str = None
     ) -> Dict[str, Any]:
         """
@@ -212,7 +211,7 @@ class LLMAnalyzer(LoggerMixin):
             
             # 使用预构建的prompt或动态构建
             if prompt is None:
-                prompt = self._get_prompt(role, data)
+                raise AnalysisError(f"未提供prompt: {model_name}", model=model_name)
             
             model_config = self.config.get_model_config(model_name)
             model_id = model_config.get("model_name", "deepseek-coder")
@@ -235,7 +234,7 @@ class LLMAnalyzer(LoggerMixin):
                         {"role": "system", "content": "你是专业的数字货币交易分析师，输出详细的Markdown格式技术分析报告。"},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.3,
+                    temperature=0.7,
                     extra_body={"enable_thinking": True},
                     max_tokens=4000  # 增加token限制以容纳详细的Markdown报告
                 )
@@ -255,6 +254,7 @@ class LLMAnalyzer(LoggerMixin):
                     "response_time_seconds": round(elapsed_time, 2),
                     "format": "markdown"
                 }
+                self.logger.debug(f"{model_name} 返回Markdown格式结果: {result_content}")
             else:
                 # 其他角色返回JSON格式
                 response = await self.async_clients[model_name].chat.completions.create(
@@ -328,7 +328,7 @@ class LLMAnalyzer(LoggerMixin):
         
         tasks = []
         for model_name in available_models:
-            task = self.async_analyze(model_name, role, data, prompt=prompt)
+            task = self.async_analyze(model_name, role, prompt=prompt)
             tasks.append(task)
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
