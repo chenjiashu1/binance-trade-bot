@@ -57,8 +57,8 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             candle_type = "阳线" if close_price > open_price else "阴线" if close_price < open_price else "十字星"
             change_percent = ((close_price - open_price) / open_price) * 100
             
-            summary.append(f"- 最近第{i+1}根({candle_type}): 开 {open_price:.4f}, 收 {close_price:.4f}, "
-                          f"高 {high_price:.4f}, 低 {low_price:.4f}, 涨跌幅 {change_percent:.2f}%")
+            summary.append(f"- 最近第{i+1}根({candle_type}): 开 {open_price}, 收 {close_price}, "
+                          f"高 {high_price}, 低 {low_price}, 涨跌幅 {change_percent:.2f}%")
         
         return "\n".join(summary)
     
@@ -281,19 +281,14 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         report.append("## 🤖 模型详细结果")
         for model_name, result in model_results.items():
             report.append(f"### {model_name}")
-            if result.get('success'):
-                report.append(f"- 状态: 成功")
-                if 'analysis' in result:
-                    report.append(f"- 分析: {result['analysis']}")
-                if 'recommendation' in result:
-                    recommendation = result['recommendation']
-                    report.append(f"- 建议: {recommendation.get('action', 'hold')}")
-                    report.append(f"- 置信度: {recommendation.get('confidence', 0)}")
-                    if 'reason' in recommendation:
-                        report.append(f"- 理由: {recommendation['reason']}")
-            else:
-                report.append(f"- 状态: 失败")
-                report.append(f"- 错误: {result.get('error', 'Unknown error')}")
+            if 'analysis' in result:
+                analysis_content = result['analysis']
+                report.append(f"- 分析: {analysis_content}")
+            if 'analysis_time' in result:
+                report.append(f"- 分析时间: {result['analysis_time']}")
+            if 'response_time_seconds' in result:
+                report.append(f"- 响应时间: {result['response_time_seconds']:.2f}秒")
+    
             report.append("")
         
         # 风险分析

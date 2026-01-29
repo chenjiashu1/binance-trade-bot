@@ -36,6 +36,24 @@ class LLMAnalyzer(LoggerMixin):
         """析构函数 - 确保资源释放"""
         self.close()
     
+    def __enter__(self):
+        """上下文管理器入口"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """上下文管理器出口"""
+        self.close()
+        return False
+    
+    async def __aenter__(self):
+        """异步上下文管理器入口"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """异步上下文管理器出口"""
+        await self.async_close()
+        return False
+    
     def _init_clients(self):
         """初始化LLM客户端"""
         models_config = self.config.get("models", {})
@@ -44,37 +62,70 @@ class LLMAnalyzer(LoggerMixin):
             self.logger.warning("未找到模型配置")
             return
         
-        for model_name, model_config in models_config.items():
-            if not model_config.get("enabled", False):
-                self.logger.debug(f"模型 {model_name} 已禁用")
-                continue
-            
-            try:
-                api_key = model_config.get("api_key", "")
-                base_url = model_config.get("base_url", "")
-                
-                if not api_key:
-                    self.logger.warning(f"跳过 {model_name}: 未配置API密钥")
+        initialized_models = []
+        
+        try:
+            for model_name, model_config in models_config.items():
+                if not model_config.get("enabled", False):
+                    self.logger.debug(f"模型 {model_name} 已禁用")
                     continue
                 
-                # 创建同步客户端
-                client = OpenAI(
-                    api_key=api_key,
-                    base_url=base_url if base_url else None
-                )
-                self.clients[model_name] = client
-                
-                # 创建异步客户端
-                async_client = AsyncOpenAI(
-                    api_key=api_key,
-                    base_url=base_url if base_url else None
-                )
-                self.async_clients[model_name] = async_client
-                
-                self.logger.info(f"{model_name} 客户端初始化成功")
-                
-            except Exception as e:
-                self.logger.error(f"{model_name} 客户端初始化失败: {e}", exc_info=True)
+                try:
+                    api_key = model_config.get("api_key", "")
+                    base_url = model_config.get("base_url", "")
+                    
+                    if not api_key:
+                        self.logger.warning(f"跳过 {model_name}: 未配置API密钥")
+                        continue
+                    
+                    # 创建同步客户端
+                    client = OpenAI(
+                        api_key=api_key,
+                        base_url=base_url if base_url else None
+                    )
+                    self.clients[model_name] = client
+                    
+                    # 创建异步客户端
+                    async_client = AsyncOpenAI(
+                        api_key=api_key,
+                        base_url=base_url if base_url else None
+                    )
+                    self.async_clients[model_name] = async_client
+                    
+                    initialized_models.append(model_name)
+                    self.logger.info(f"{model_name} 客户端初始化成功")
+                    
+                except Exception as e:
+                    self.logger.error(f"{model_name} 客户端初始化失败: {e}", exc_info=True)
+                    # 清理已创建的客户端
+                    if model_name in self.clients:
+                        try:
+                            self.clients[model_name].close()
+                        except Exception as close_e:
+                            self.logger.error(f"关闭 {model_name} 同步客户端失败: {close_e}")
+                        del self.clients[model_name]
+                    if model_name in self.async_clients:
+                        try:
+                            # 异步关闭需要在异步上下文中执行
+                            # 这里只删除引用，实际关闭会在系统退出时处理
+                            del self.async_clients[model_name]
+                        except Exception as close_e:
+                            self.logger.error(f"删除 {model_name} 异步客户端引用失败: {close_e}")
+        except Exception as e:
+            self.logger.error(f"初始化客户端过程中发生错误: {e}", exc_info=True)
+            # 清理所有已初始化的客户端
+            for model_name in initialized_models:
+                if model_name in self.clients:
+                    try:
+                        self.clients[model_name].close()
+                    except Exception as close_e:
+                        self.logger.error(f"关闭 {model_name} 同步客户端失败: {close_e}")
+                    del self.clients[model_name]
+                if model_name in self.async_clients:
+                    try:
+                        del self.async_clients[model_name]
+                    except Exception as close_e:
+                        self.logger.error(f"删除 {model_name} 异步客户端引用失败: {close_e}")
     
     def analyze(
         self,
