@@ -191,7 +191,8 @@ class LLMAnalyzer(LoggerMixin):
         self,
         model_name: str,
         role: str,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
+        prompt: str = None
     ) -> Dict[str, Any]:
         """
         异步调用LLM进行分析
@@ -200,6 +201,7 @@ class LLMAnalyzer(LoggerMixin):
             model_name: 模型名称
             role: 分析角色
             data: 输入数据
+            prompt: 预构建的prompt（可选）
             
         Returns:
             分析结果
@@ -208,7 +210,10 @@ class LLMAnalyzer(LoggerMixin):
             if model_name not in self.async_clients:
                 raise AnalysisError(f"异步客户端未初始化: {model_name}", model=model_name)
             
-            prompt = self._get_prompt(role, data)
+            # 使用预构建的prompt或动态构建
+            if prompt is None:
+                prompt = self._get_prompt(role, data)
+            
             model_config = self.config.get_model_config(model_name)
             model_id = model_config.get("model_name", "deepseek-coder")
             
@@ -316,11 +321,15 @@ class LLMAnalyzer(LoggerMixin):
         if not available_models:
             raise AnalysisError("没有可用的模型客户端", model="all")
         
+        # 只构建一次prompt
+        prompt = self._get_prompt(role, data)
+        
         self.logger.info(f"并行分析模型: {available_models}")
+        self.logger.info(f"已构建统一的prompt，长度: {len(prompt)} 字符")
         
         tasks = []
         for model_name in available_models:
-            task = self.async_analyze(model_name, role, data)
+            task = self.async_analyze(model_name, role, data, prompt=prompt)
             tasks.append(task)
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
