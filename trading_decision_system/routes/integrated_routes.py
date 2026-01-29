@@ -49,7 +49,6 @@ class AnalysisResponse(BaseModel):
 
 class RealTimeAnalysisRequest(BaseModel):
     symbol: str
-    period: Optional[str] = "1h"
     user_message: Optional[str] = ""
     additional_instructions: Optional[str] = ""
 
@@ -58,7 +57,6 @@ class RealTimeAnalysisResponse(BaseModel):
     success: bool
     message: str
     symbol: str
-    period: str
     analysis_time: str
     markdown_report: Optional[str] = None
     model_analyses: Optional[dict] = None
@@ -421,7 +419,6 @@ class TradingDecisionEngine:
     async def analyze_symbol_realtime(
         self,
         symbol: str,
-        period: str = "1h",
         user_message: str = "",
         additional_instructions: str = ""
     ) -> dict:
@@ -429,7 +426,7 @@ class TradingDecisionEngine:
         实时技术分析（方案二）
         根据分析指标和prompt，调用多种模型进行分析，汇总结果输出Markdown文档
         """
-        self.logger.info(f"开始实时分析: {symbol} (period={period})")
+        self.logger.info(f"开始实时分析: {symbol} (1h/4h/1d 多时间维度)")
         
         try:
             # 步骤1: 获取市场数据
@@ -444,7 +441,6 @@ class TradingDecisionEngine:
             # 步骤4: 准备LLM输入数据
             llm_input = self._prepare_realtime_llm_input(
                 symbol,
-                period,
                 market_data,
                 indicators,
                 account_info,
@@ -469,7 +465,6 @@ class TradingDecisionEngine:
             return {
                 "success": True,
                 "symbol": symbol,
-                "period": period,
                 "analysis_time": llm_input['current_time_utc'],
                 "markdown_report": markdown_report,
                 "model_analyses": model_results
@@ -482,7 +477,6 @@ class TradingDecisionEngine:
     def _prepare_realtime_llm_input(
         self,
         symbol: str,
-        period: str,
         market_data: dict,
         indicators: dict,
         account_info: dict,
@@ -494,11 +488,15 @@ class TradingDecisionEngine:
         
         current_time_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         
-        # K线摘要
-        klines_summary = self._generate_klines_summary(market_data['klines_1h'])
+        # 生成三个时间维度的K线摘要
+        klines_summary_1h = self._generate_klines_summary(market_data['klines_1h'], "1小时图")
+        klines_summary_4h = self._generate_klines_summary(market_data['klines_4h'], "4小时图")
+        klines_summary_1d = self._generate_klines_summary(market_data['klines_1d'], "日线图")
         
-        # 技术指标摘要
-        indicators_summary = self._generate_indicators_summary(indicators, period)
+        # 生成三个时间维度的技术指标摘要
+        indicators_summary_1h = self._generate_indicators_summary(indicators['1h'], "1小时图")
+        indicators_summary_4h = self._generate_indicators_summary(indicators['4h'], "4小时图")
+        indicators_summary_1d = self._generate_indicators_summary(indicators['1d'], "日线图")
         
         # 资金流指标摘要
         flow_indicators_summary = self._generate_flow_indicators_summary(market_data)
@@ -511,7 +509,6 @@ class TradingDecisionEngine:
         
         return {
             "symbol": symbol,
-            "period": period,
             "current_time_utc": current_time_utc,
             "current_price": market_data['ticker']['price'],
             "change_24h": market_data['ticker_24h']['price_change_percent'],
@@ -519,54 +516,63 @@ class TradingDecisionEngine:
             "open_interest": "N/A",  # 需要从API获取
             "funding_rate": "N/A",  # 需要从API获取
             "commission_rates": commission_rates,  # 佣金费率
-            "kline_count": 20,
-            "klines_summary": klines_summary,
-            "indicators_summary": indicators_summary,
+            
+            # 三个时间维度的K线数据
+            "klines_summary_1h": klines_summary_1h,
+            "klines_summary_4h": klines_summary_4h,
+            "klines_summary_1d": klines_summary_1d,
+            
+            # 三个时间维度的技术指标
+            "indicators_summary_1h": indicators_summary_1h,
+            "indicators_summary_4h": indicators_summary_4h,
+            "indicators_summary_1d": indicators_summary_1d,
+            
             "flow_indicators_summary": flow_indicators_summary,
             "positions_summary": positions_summary,
             "user_message": user_message,
             "additional_instructions": additional_instructions
         }
     
-    def _generate_klines_summary(self, klines):
+    def _generate_klines_summary(self, klines, timeframe_name):
         """生成K线摘要"""
         if klines.empty:
-            return "暂无K线数据"
+            return f"{timeframe_name}: 暂无K线数据"
         
-        summary_lines = []
+        summary_lines = [f"\n=== {timeframe_name} K线数据 ==="]
         recent_klines = klines.tail(20)
         
         for i, (idx, row) in enumerate(recent_klines.iterrows()):
-            time_str = idx.strftime("%H:%M")
+            if timeframe_name == "日线图":
+                time_str = idx.strftime("%m-%d")
+            else:
+                time_str = idx.strftime("%H:%M")
             candle_type = "🟢" if row['close'] >= row['open'] else "🔴"
             summary_lines.append(f"{time_str}: {candle_type} {row['open']:.4f} → {row['close']:.4f} (高: {row['high']:.4f}, 低: {row['low']:.4f})")
         
         return "\n".join(summary_lines)
     
-    def _generate_indicators_summary(self, indicators, period):
+    def _generate_indicators_summary(self, period_indicators, timeframe_name):
         """生成技术指标摘要"""
-        period_indicators = indicators.get(period, indicators.get('1h', {}))
-        
-        summary = []
+        summary = [f"\n=== {timeframe_name} 技术指标 ==="]
         
         # 趋势指标
         if 'trend' in period_indicators:
             trend = period_indicators['trend']
-            summary.append(f"### 趋势指标")
+            summary.append(f"\n**趋势指标:**")
             summary.append(f"- 趋势方向: {trend.get('trend', '未知')}")
             summary.append(f"- 趋势强度: {trend.get('strength', 0)}/100")
         
         # RSI
         if 'rsi' in period_indicators:
             rsi = period_indicators['rsi']
-            summary.append(f"\n### RSI")
+            summary.append(f"\n**RSI:**")
             summary.append(f"- RSI数值: {rsi.get('value', 0):.2f}")
             summary.append(f"- RSI状态: {rsi.get('status', '未知')}")
         
         # MACD
         if 'macd' in period_indicators:
             macd = period_indicators['macd']
-            summary.append(f"\n### MACD")
+            summary.append(f"\n**MACD:**")
             summary.append(f"- MACD线: {macd.get('macd', 0):.4f}")
             summary.append(f"- 信号线: {macd.get('signal', 0):.4f}")
             summary.append(f"- 柱状图: {macd.get('histogram', 0):.4f}")
@@ -574,7 +580,7 @@ class TradingDecisionEngine:
         # 均线
         if 'ma' in period_indicators:
             ma = period_indicators['ma']
-            summary.append(f"\n### 均线")
+            summary.append(f"\n**均线:**")
             for key, value in ma.items():
                 if value:
                     summary.append(f"- {key.upper()}: {value:.4f}")
@@ -582,7 +588,7 @@ class TradingDecisionEngine:
         # 布林带
         if 'bollinger' in period_indicators:
             bb = period_indicators['bollinger']
-            summary.append(f"\n### 布林带")
+            summary.append(f"\n**布林带:**")
             summary.append(f"- 上轨: {bb.get('upper', 0):.4f}")
             summary.append(f"- 中轨: {bb.get('middle', 0):.4f}")
             summary.append(f"- 下轨: {bb.get('lower', 0):.4f}")
@@ -914,11 +920,10 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
         if not request.symbol:
             raise HTTPException(status_code=400, detail="交易对不能为空")
         
-        engine.logger.info(f"收到实时分析请求: symbol={request.symbol}, period={request.period}")
+        engine.logger.info(f"收到实时分析请求: symbol={request.symbol}")
         
         result = await engine.analyze_symbol_realtime(
             symbol=request.symbol,
-            period=request.period,
             user_message=request.user_message,
             additional_instructions=request.additional_instructions
         )
@@ -927,7 +932,6 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
             success=True,
             message="实时分析完成",
             symbol=result['symbol'],
-            period=result['period'],
             analysis_time=result['analysis_time'],
             markdown_report=result['markdown_report'],
             model_analyses=result['model_analyses']
@@ -942,7 +946,6 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
             success=False,
             message="实时分析失败",
             symbol=request.symbol,
-            period=request.period,
             analysis_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             error=str(e)
         )
