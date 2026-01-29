@@ -3,12 +3,12 @@
 实现实时技术分析功能
 """
 
-import logging
 from typing import Dict, Optional
 from pathlib import Path
 
 from trading_decision_system.utils.config_loader import ConfigLoader
 from trading_decision_system.services.analysis_strategy.base_analysis_strategy import BaseAnalysisStrategy
+from trading_decision_system.utils.logger import log_exceptions
 
 
 class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
@@ -166,16 +166,20 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             "additional_instructions": additional_instructions
         }
     
+    @log_exceptions
     async def _run_realtime_llm_analysis(self, llm_input: dict) -> dict:
         """运行实时LLM分析"""
-        try:
-            model_results = await self.llm_analyzer.async_analyze_all("technical", llm_input)
-            return model_results
-            
-        except Exception as e:
-            self.logger.error(f"LLM分析失败: {e}")
-            raise
+        self.info("开始运行实时LLM分析", symbol=llm_input.get('symbol', 'Unknown'))
+        
+        model_results = await self.llm_analyzer.async_analyze_all("technical", llm_input)
+        
+        self.debug("实时LLM分析完成", 
+                  symbol=llm_input.get('symbol', 'Unknown'), 
+                  model_count=len(model_results))
+        
+        return model_results
     
+    @log_exceptions
     async def _aggregate_realtime_analysis(self, model_results: dict, symbol: str) -> dict:
         """聚合实时分析结果"""
         if not model_results:
@@ -197,7 +201,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             raise Exception("所有模型分析失败")
         
         # 使用 deepseek-r1 聚合分析各个模型的结果
-        self.logger.info(f"使用 deepseek-r1 聚合分析模型结果 - {symbol}")
+        self.info("使用 deepseek-r1 聚合分析模型结果", symbol=symbol, model_count=len(model_results))
         
         # 准备聚合分析的 prompt
         prompt = f"【角色】你是专业的交易策略分析师，拥有10年以上交易经验\n"
@@ -219,23 +223,24 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             prompt += f"### {model_name}\n"
             prompt += f"- 状态: 成功\n"
             if 'analysis' in result:
-                prompt += f"- 分析: {result['analysis']}\n"
+                analysis_content = result['analysis']
+                prompt += f"- 分析: {analysis_content}\n"
             prompt += "\n"
         
-        self.logger.info(f"{symbol}-聚合分析prompt准备完成 - {prompt}")
+        self.info("聚合分析prompt准备完成", symbol=symbol, prompt=prompt)
         # 调用 deepseek-r1 模型进行聚合分析
         deepseek_result = await self.llm_analyzer.async_analyze("deepseek", "technical", prompt)
         
         # 检查 deepseek-r1 分析是否成功：如果结果中没有 success 字段或者 success 字段为 True，则认为分析成功
         if not deepseek_result.get('success') is False:
-            self.logger.info(f"deepseek-r1 聚合分析完成 - {symbol}")
+            self.info("deepseek-r1 聚合分析完成", symbol=symbol)
             return {
                 "model": "deepseek-r1 (聚合分析)",
                 "analysis": deepseek_result.get('analysis', {}),
                 "recommendation": deepseek_result.get('recommendation', {})
             }
         else:
-            self.logger.warning(f"deepseek-r1 聚合分析失败，使用临时聚合结果 - {symbol}")
+            self.warning("deepseek-r1 聚合分析失败，使用临时聚合结果", symbol=symbol)
             return temporary_result
     
     def _generate_markdown_report(self, final_analysis: dict, model_results: dict) -> str:
@@ -315,29 +320,26 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         
         return "\n".join(report)
     
+    @log_exceptions
     def _save_markdown_report(self, symbol: str, report: str) -> bool:
         """保存Markdown报告"""
-        try:
-            from datetime import datetime
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"realtime_analysis_{symbol}_{timestamp}.md"
-            
-            output_path = Path(__file__).parent.parent / "logs" / "realtime"
-            output_path.mkdir(parents=True, exist_ok=True)
-            
-            file_path = output_path / filename
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(report)
-            
-            self.logger.info(f"报告已保存: {file_path}")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"报告保存失败: {e}")
-            return False
+        from datetime import datetime
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"realtime_analysis_{symbol}_{timestamp}.md"
+        
+        output_path = Path(__file__).parent.parent / "logs" / "realtime"
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        file_path = output_path / filename
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(report)
+        
+        self.info("报告已保存", symbol=symbol, file_path=str(file_path))
+        return True
     
+    @log_exceptions
     async def execute(self, symbol: str, user_message: str = "", additional_instructions: str = "") -> Dict:
         """
         执行实时分析
@@ -350,70 +352,78 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         Returns:
             分析结果
         """
-        self.logger.info(f"开始实时分析: {symbol} (1h/4h/1d 多时间维度)")
-        self.logger.info(f"用户消息: {user_message}")
-        self.logger.info(f"额外指令: {additional_instructions}")
+        self.info("开始实时分析", 
+                 symbol=symbol, 
+                 timeframes=["1h", "4h", "1d"],
+                 user_message=user_message[:100] + "..." if len(user_message) > 100 else user_message)
         
-        try:
-            # 步骤1: 获取市场数据
-            self.logger.info(f"步骤1: 获取市场数据 - {symbol}")
-            market_data = await self._fetch_market_data(symbol)
-            self.logger.info(f"市场数据获取完成: {symbol}, 包含1h/4h/1d K线数据")
-            
-            # 步骤2: 计算技术指标
-            self.logger.info(f"步骤2: 计算技术指标 - {symbol}")
-            indicators = await self._calculate_indicators(market_data)
-            self.logger.info(f"技术指标计算完成: {symbol}, 包含趋势/RSI/MACD/均线/布林带等指标")
-            
-            # 步骤3: 获取账户信息
-            self.logger.info(f"步骤3: 获取账户信息 - {symbol}")
-            account_info = await self._get_account_info(symbol)
-            self.logger.info(f"账户信息获取完成: {symbol}, 总资产: {account_info.get('total_assets_usdt', 0):.2f} USDT")
-            
-            # 步骤4: 准备LLM输入数据
-            self.logger.info(f"步骤4: 准备LLM输入数据 - {symbol}")
-            llm_input = self._prepare_realtime_llm_input(
-                symbol,
-                market_data,
-                indicators,
-                account_info,
-                user_message,
-                additional_instructions
-            )
-            self.logger.info(f"LLM输入数据准备完成: {symbol}, 包含K线摘要和指标摘要")
-            
-            # 步骤5: 调用多种模型进行分析
-            self.logger.info(f"步骤5: 调用多种模型进行分析 - {symbol}")
-            model_results = await self._run_realtime_llm_analysis(llm_input)
-            self.logger.info(f"模型分析完成: {symbol}, 分析模型结果: {model_results}")
-            
-            # 步骤6: 汇总分析结果
-            self.logger.info(f"步骤6: 汇总分析结果 - {symbol}")
-            print(f"步骤6: 汇总分析结果 - {symbol}")
-            final_analysis = await self._aggregate_realtime_analysis(model_results, symbol)
-            self.logger.info(f"分析结果汇总完成: {symbol}, 选中模型: {final_analysis.get('model', 'Unknown')}")
-            
-            # 步骤7: 生成Markdown报告
-            self.logger.info(f"步骤7: 生成Markdown报告 - {symbol}")
-            markdown_report = self._generate_markdown_report(final_analysis, model_results)
-            self.logger.info(f"Markdown报告生成完成: {symbol}, 报告长度: {len(markdown_report)} 字符")
-            
-            # 步骤8: 保存报告
-            self.logger.info(f"步骤8: 保存报告 - {symbol}")
-            self._save_markdown_report(symbol, markdown_report)
-            self.logger.info(f"报告保存完成: {symbol}")
-            
-            self.logger.info(f"实时分析完成: {symbol}")
-            
-            return {
-                "success": True,
-                "symbol": symbol,
-                "analysis_time": llm_input['current_time_utc'],
-                "markdown_report": markdown_report,
-                "model_analyses": model_results
-            }
-            
-        except Exception as e:
-            self.logger.error(f"实时分析失败 {symbol}: {e}")
-            self.logger.error(f"错误详情: {str(e)}", exc_info=True)
-            raise
+        # 步骤1: 获取市场数据
+        self.info("步骤1: 获取市场数据", symbol=symbol)
+        market_data = await self._fetch_market_data(symbol)
+        self.info("市场数据获取完成", 
+                  symbol=symbol, 
+                  data_types=["1h K线", "4h K线", "1d K线", "ticker", "24h ticker", "commission rates"])
+        
+        # 步骤2: 计算技术指标
+        self.info("步骤2: 计算技术指标", symbol=symbol)
+        indicators = await self._calculate_indicators(market_data)
+        self.info("技术指标计算完成", 
+                  symbol=symbol, 
+                  indicators=["趋势", "RSI", "MACD", "均线", "布林带"])
+        
+        # 步骤3: 获取账户信息
+        self.info("步骤3: 获取账户信息", symbol=symbol)
+        account_info = await self._get_account_info(symbol)
+        self.info("账户信息获取完成", 
+                  symbol=symbol, 
+                  total_assets=account_info.get('total_assets_usdt', 0))
+        
+        # 步骤4: 准备LLM输入数据
+        self.info("步骤4: 准备LLM输入数据", symbol=symbol)
+        llm_input = self._prepare_realtime_llm_input(
+            symbol,
+            market_data,
+            indicators,
+            account_info,
+            user_message,
+            additional_instructions
+        )
+        self.debug("LLM输入数据准备完成", 
+                  symbol=symbol, 
+                  input_size=len(str(llm_input)))
+        
+        # 步骤5: 调用多种模型进行分析
+        self.info("步骤5: 调用多种模型进行分析", symbol=symbol)
+        model_results = await self._run_realtime_llm_analysis(llm_input)
+        self.debug("模型分析完成", 
+                  symbol=symbol, 
+                  model_count=len(model_results))
+        
+        # 步骤6: 汇总分析结果
+        self.info("步骤6: 汇总分析结果", symbol=symbol)
+        final_analysis = await self._aggregate_realtime_analysis(model_results, symbol)
+        self.info("分析结果汇总完成", 
+                  symbol=symbol, 
+                  final_model=final_analysis.get('model', 'Unknown'))
+        
+        # 步骤7: 生成Markdown报告
+        self.info("步骤7: 生成Markdown报告", symbol=symbol)
+        markdown_report = self._generate_markdown_report(final_analysis, model_results)
+        self.debug("Markdown报告生成完成", 
+                  symbol=symbol, 
+                  report_length=len(markdown_report))
+        
+        # 步骤8: 保存报告
+        self.info("步骤8: 保存报告", symbol=symbol)
+        self._save_markdown_report(symbol, markdown_report)
+        self.info("报告保存完成", symbol=symbol)
+        
+        self.info("实时分析完成", symbol=symbol)
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "analysis_time": llm_input['current_time_utc'],
+            "markdown_report": markdown_report,
+            "model_analyses": model_results
+        }
