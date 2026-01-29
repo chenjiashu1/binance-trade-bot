@@ -24,7 +24,7 @@ models:
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     model_name: "deepseek-r1"
     role: "strategist"
-    weight: 0.4
+    weight: 0.6
     enabled: true
     
   qwen:
@@ -32,7 +32,7 @@ models:
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     model_name: "qwen3-max"
     role: "technical"
-    weight: 0.3
+    weight: 0.4
     enabled: true
 
   gpt4:

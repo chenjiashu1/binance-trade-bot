@@ -220,7 +220,6 @@ class LLMAnalyzer(LoggerMixin):
             self.logger.info(f"\n" + "="*80)
             self.logger.info(f"LLM调用信息: {model_name} ({model_id}) - {role}")
             self.logger.info("="*80)
-            self.logger.info(f"Prompt内容:\n{prompt}")
             self.logger.info("="*80 + "\n")
             
             self.logger.debug(f"异步调用 {model_name} ({model_id}) 进行 {role} 分析...")
@@ -325,7 +324,7 @@ class LLMAnalyzer(LoggerMixin):
         prompt = self._get_prompt(role, data)
         
         self.logger.info(f"并行分析模型: {available_models}")
-        self.logger.info(f"已构建统一的prompt，长度: {len(prompt)} 字符")
+        self.logger.info(f"已构建统一的prompt: {prompt}")
         
         tasks = []
         for model_name in available_models:

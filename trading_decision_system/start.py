@@ -22,7 +22,7 @@ from pathlib import Path
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from trading_decision_system.routes.integrated_routes import IntegratedService
+from trading_decision_system.services.integrated_service import IntegratedService
 
 
 async def main():
