@@ -337,20 +337,22 @@ class DataFetcher(LoggerMixin):
             佣金费率信息
         """
         try:
-            self.logger.debug(f"获取佣金费率: {symbol}")
+            self.debug(f"获取佣金费率: {symbol}")
             
-            commission = self.client.get_commission_rate(symbol=symbol.upper())
+            # 从账户信息中获取佣金费率
+            # Binance API 没有单独的 get_commission_rate 方法
+            account = self.client.get_account()
             
             return {
-                "symbol": commission.get("symbol", symbol),
-                "maker": float(commission.get("makerCommission", 0)),
-                "taker": float(commission.get("takerCommission", 0)),
-                "buyer": float(commission.get("buyerCommission", 0)),
-                "seller": float(commission.get("sellerCommission", 0))
+                "symbol": symbol,
+                "maker": account.get("makerCommission", 0) / 10000,  # 转换为小数
+                "taker": account.get("takerCommission", 0) / 10000,  # 转换为小数
+                "buyer": account.get("buyerCommission", 0) / 10000,  # 转换为小数
+                "seller": account.get("sellerCommission", 0) / 10000  # 转换为小数
             }
             
         except BinanceAPIException as e:
-            self.logger.warning(f"获取佣金费率失败 {symbol}: {e}")
+            self.warning(f"获取佣金费率失败 {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "maker": 0.001,  # 默认maker费率 0.1%
@@ -360,7 +362,7 @@ class DataFetcher(LoggerMixin):
                 "error": str(e)
             }
         except Exception as e:
-            self.logger.error(f"获取佣金费率异常 {symbol}: {e}")
+            self.error(f"获取佣金费率异常 {symbol}: {e}")
             return {
                 "symbol": symbol,
                 "maker": 0.001,

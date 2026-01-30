@@ -57,8 +57,8 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             candle_type = "阳线" if close_price > open_price else "阴线" if close_price < open_price else "十字星"
             change_percent = ((close_price - open_price) / open_price) * 100
             
-            summary.append(f"- 最近第{i+1}根({candle_type}): 开 {open_price}, 收 {close_price}, "
-                          f"高 {high_price}, 低 {low_price}, 涨跌幅 {change_percent:.2f}%")
+            summary.append(f"- 最近第{i+1}根({candle_type}): 开 {open_price:.8f}, 收 {close_price:.8f}, "
+                          f"高 {high_price:.8f}, 低 {low_price:.8f}, 涨跌幅 {change_percent:.8f}%")
         
         return "\n".join(summary)
     
@@ -80,16 +80,16 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         if 'rsi' in indicators:
             rsi = indicators['rsi']
             summary.append(f"\n**RSI:**")
-            summary.append(f"- 值: {rsi.get('value', 0):.2f}")
+            summary.append(f"- 值: {rsi.get('value', 0):.8f}")
             summary.append(f"- 状态: {rsi.get('status', 'neutral')}")
         
         # MACD
         if 'macd' in indicators:
             macd = indicators['macd']
             summary.append(f"\n**MACD:**")
-            summary.append(f"- MACD: {macd.get('macd', 0):.4f}")
-            summary.append(f"- Signal: {macd.get('signal', 0):.4f}")
-            summary.append(f"- Histogram: {macd.get('histogram', 0):.4f}")
+            summary.append(f"- MACD: {macd.get('macd', 0):.8f}")
+            summary.append(f"- Signal: {macd.get('signal', 0):.8f}")
+            summary.append(f"- Histogram: {macd.get('histogram', 0):.8f}")
         
         # 均线
         if 'ma' in indicators:
@@ -97,15 +97,15 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             summary.append(f"\n**均线:**")
             for key, value in ma.items():
                 if value:
-                    summary.append(f"- {key.upper()}: {value:.4f}")
+                    summary.append(f"- {key.upper()}: {value:.8f}")
         
         # 布林带
         if 'bollinger' in indicators:
             bb = indicators['bollinger']
             summary.append(f"\n**布林带:**")
-            summary.append(f"- 上轨: {bb.get('upper', 0):.4f}")
-            summary.append(f"- 中轨: {bb.get('middle', 0):.4f}")
-            summary.append(f"- 下轨: {bb.get('lower', 0):.4f}")
+            summary.append(f"- 上轨: {bb.get('upper', 0):.8f}")
+            summary.append(f"- 中轨: {bb.get('middle', 0):.8f}")
+            summary.append(f"- 下轨: {bb.get('lower', 0):.8f}")
         
         return "\n".join(summary)
     
@@ -138,10 +138,10 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         
         # 持仓情况摘要
         positions_summary = f"""**持仓情况:**
-- 总资产: {account_info.get('total_assets_usdt', 0):.2f} USDT
-- USDT余额: {account_info.get('balances', {}).get('USDT', 0):.2f}
+- 总资产: {account_info.get('total_assets_usdt', 0):.8f} USDT
+- USDT余额: {account_info.get('balances', {}).get('USDT', 0):.8f}
 - 当前持仓数: {len(account_info.get('balances', {}))}
-- 胜率: {account_info.get('trade_statistics', {}).get('win_rate', 0):.2f}%
+- 胜率: {account_info.get('trade_statistics', {}).get('win_rate', 0):.8f}%
 - 总交易次数: {account_info.get('trade_statistics', {}).get('total_trades', 0)}
 """
         
@@ -287,7 +287,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             if 'analysis_time' in result:
                 report.append(f"- 分析时间: {result['analysis_time']}")
             if 'response_time_seconds' in result:
-                report.append(f"- 响应时间: {result['response_time_seconds']:.2f}秒")
+                report.append(f"- 响应时间: {result['response_time_seconds']:.8f}秒")
     
             report.append("")
         
@@ -364,7 +364,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         indicators = await self._calculate_indicators(market_data)
         self.info("技术指标计算完成", 
                   symbol=symbol, 
-                  indicators=["趋势", "RSI", "MACD", "均线", "布林带"])
+                  indicators=indicators)
         
         # 步骤3: 获取账户信息
         self.info("步骤3: 获取账户信息", symbol=symbol)

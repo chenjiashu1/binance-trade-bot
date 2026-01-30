@@ -240,6 +240,7 @@ class IndicatorCalculator(LoggerMixin):
             max_volume = recent_data["volume"].max()
             min_volume = recent_data["volume"].min()
             volume_trend = recent_data["volume"].pct_change().mean()
+            volume_ratio = total_volume / (avg_volume * period) if avg_volume > 0 else 0
             
             return {
                 "total_volume": total_volume,
@@ -247,7 +248,7 @@ class IndicatorCalculator(LoggerMixin):
                 "max_volume": max_volume,
                 "min_volume": min_volume,
                 "volume_trend": volume_trend,
-                "volume_ratio": total_volume / (avg_volume * period) if avg_volume > 0 else 0
+                "volume_ratio": volume_ratio
             }
             
         except Exception as e:
@@ -304,10 +305,10 @@ class IndicatorCalculator(LoggerMixin):
             
             return {
                 "trend": trend,
-                "strength": round(strength, 2),
-                "ma_short": round(current_ma_short, 4),
-                "ma_long": round(current_ma_long, 4),
-                "current_price": round(current_price, 4),
+                "strength": round(strength, 8),
+                "ma_short": round(current_ma_short, 8),
+                "ma_long": round(current_ma_long, 8),
+                "current_price": round(current_price, 8),
                 "ma_crossover": "golden" if ma_diff > 0 else "death" if ma_diff < 0 else "none"
             }
             
@@ -344,7 +345,7 @@ class IndicatorCalculator(LoggerMixin):
             # RSI
             rsi = self.calculate_rsi(data, period=config["rsi"]["period"])
             indicators["rsi"] = {
-                "value": round(rsi.iloc[-1], 2),
+                "value": round(rsi.iloc[-1], 8),
                 "status": "overbought" if rsi.iloc[-1] > 70 else "oversold" if rsi.iloc[-1] < 30 else "neutral"
             }
             
@@ -356,9 +357,9 @@ class IndicatorCalculator(LoggerMixin):
                 signal_period=config["macd"]["signal"]
             )
             indicators["macd"] = {
-                "macd": round(macd.iloc[-1], 4),
-                "signal": round(signal.iloc[-1], 4),
-                "histogram": round(histogram.iloc[-1], 4),
+                "macd": round(macd.iloc[-1], 8),
+                "signal": round(signal.iloc[-1], 8),
+                "histogram": round(histogram.iloc[-1], 8),
                 "crossover": "bullish" if histogram.iloc[-1] > 0 and histogram.iloc[-2] < 0 else
                            "bearish" if histogram.iloc[-1] < 0 and histogram.iloc[-2] > 0 else "none"
             }
@@ -367,7 +368,7 @@ class IndicatorCalculator(LoggerMixin):
             ma_dict = self.calculate_ma(data, periods=config["ma"]["periods"])
             indicators["ma"] = {}
             for period, ma_series in ma_dict.items():
-                indicators["ma"][f"ma{period}"] = round(ma_series.iloc[-1], 4)
+                indicators["ma"][f"ma{period}"] = round(ma_series.iloc[-1], 8)
             
             # 布林带
             upper, middle, lower = self.calculate_bollinger_bands(
@@ -377,33 +378,62 @@ class IndicatorCalculator(LoggerMixin):
             )
             current_price = data["close"].iloc[-1]
             indicators["bollinger"] = {
-                "upper": round(upper.iloc[-1], 4),
-                "middle": round(middle.iloc[-1], 4),
-                "lower": round(lower.iloc[-1], 4),
+                "upper": round(upper.iloc[-1], 8),
+                "middle": round(middle.iloc[-1], 8),
+                "lower": round(lower.iloc[-1], 8),
                 "position": "above" if current_price > upper.iloc[-1] else
                            "below" if current_price < lower.iloc[-1] else "inside"
             }
             
             # ATR
             atr = self.calculate_atr(data, period=config["atr"]["period"])
-            indicators["atr"] = round(atr.iloc[-1], 4)
+            indicators["atr"] = round(atr.iloc[-1], 8)
             
             # 趋势检测
             trend_info = self.detect_trend(data)
-            indicators["trend"] = trend_info
+            # 优化趋势检测结果的精度
+            optimized_trend_info = {
+                "trend": trend_info["trend"],
+                "strength": round(trend_info["strength"], 8),
+                "ma_short": round(trend_info["ma_short"], 8),
+                "ma_long": round(trend_info["ma_long"], 8),
+                "current_price": round(trend_info["current_price"], 8),
+                "ma_crossover": trend_info["ma_crossover"]
+            }
+            indicators["trend"] = optimized_trend_info
             
             # 成交量分布
             volume_profile = self.calculate_volume_profile(data)
-            indicators["volume"] = volume_profile
+            # 优化成交量分布的精度
+            optimized_volume_profile = {
+                "total_volume": volume_profile["total_volume"],
+                "avg_volume": round(volume_profile["avg_volume"], 8),
+                "max_volume": volume_profile["max_volume"],
+                "min_volume": volume_profile["min_volume"],
+                "volume_trend": round(volume_profile["volume_trend"], 8),
+                "volume_ratio": round(volume_profile["volume_ratio"], 8)
+            }
+            indicators["volume"] = optimized_volume_profile
             
             # 价格统计
             recent_data = data.tail(20)
+            change_24h = 0
+            if len(data) >= 24:
+                try:
+                    close_price = data["close"].iloc[-1]
+                    open_price_24h = data["open"].iloc[-24]
+                    if open_price_24h != 0:
+                        change_24h = (close_price - open_price_24h) / open_price_24h * 100
+                except Exception as e:
+                    self.logger.warning(f"计算24小时涨跌幅失败: {e}")
+                    change_24h = 0
+            
             indicators["price_stats"] = {
-                "current": round(data["close"].iloc[-1], 4),
-                "open": round(data["open"].iloc[-1], 4),
-                "high": round(recent_data["high"].max(), 4),
-                "low": round(recent_data["low"].min(), 4),
-                "change_24h": round((data["close"].iloc[-1] - data["open"].iloc[-24]) / data["open"].iloc[-24] * 100, 2) if len(data) >= 24 else 0
+                "current": round(data["close"].iloc[-1], 8),
+                "open": round(data["open"].iloc[-1], 8),
+                "high": round(recent_data["high"].max(), 8),
+                "low": round(recent_data["low"].min(), 8),
+                "change_24h": round(change_24h, 8)
             }
             
             return indicators
