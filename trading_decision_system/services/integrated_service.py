@@ -37,7 +37,7 @@ class IntegratedService:
         # 初始化策略
         self.logger.info("初始化分析策略...")
         self.standard_strategy = AnalysisStrategyFactory.get_strategy("standard", self.config)
-        self.realtime_strategy = AnalysisStrategyFactory.get_strategy("realtime", self.config)
+        self.common_technical_strategy = AnalysisStrategyFactory.get_strategy("common_technical", self.config)
         
         # 初始化调度器
         self.logger.info("初始化任务调度器...")

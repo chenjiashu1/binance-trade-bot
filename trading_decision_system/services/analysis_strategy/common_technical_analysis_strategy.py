@@ -1,6 +1,6 @@
 """
-实时分析策略
-实现实时技术分析功能
+通用技术分析策略
+实现通用技术分析功能
 """
 
 from typing import Dict, Optional
@@ -11,14 +11,14 @@ from trading_decision_system.services.analysis_strategy.base_analysis_strategy i
 from trading_decision_system.utils.logger import log_exceptions
 
 
-class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
+class CommonTechnicalAnalysisStrategy(BaseAnalysisStrategy):
     """
-    实时分析策略
+    通用技术分析策略
     """
     
     def __init__(self, config=None):
         """
-        初始化实时分析策略
+        初始化通用技术分析策略
         
         Args:
             config: 配置对象
@@ -109,7 +109,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         
         return "\n".join(summary)
     
-    def _prepare_realtime_llm_input(
+    def _prepare_common_technical_llm_input(
         self,
         symbol: str,
         market_data: dict,
@@ -118,7 +118,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         user_message: str,
         additional_instructions: str
     ) -> dict:
-        """准备实时分析LLM输入数据"""
+        """准备通用技术分析LLM输入数据"""
         from datetime import datetime, timezone
         
         current_time_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -167,21 +167,21 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         }
     
     @log_exceptions
-    async def _run_realtime_llm_analysis(self, llm_input: dict) -> dict:
-        """运行实时LLM分析"""
-        self.info("开始运行实时LLM分析", symbol=llm_input.get('symbol', 'Unknown'))
+    async def _run_common_technical_llm_analysis(self, llm_input: dict) -> dict:
+        """运行通用技术分析LLM分析"""
+        self.info("开始运行通用技术分析LLM分析", symbol=llm_input.get('symbol', 'Unknown'))
         
         model_results = await self.llm_analyzer.async_analyze_all("technical", llm_input)
         
-        self.debug("实时LLM分析完成", 
+        self.debug("通用技术分析LLM分析完成", 
                   symbol=llm_input.get('symbol', 'Unknown'), 
                   model_count=len(model_results))
         
         return model_results
     
     @log_exceptions
-    async def _aggregate_realtime_analysis(self, model_results: dict, symbol: str) -> dict:
-        """聚合实时分析结果"""
+    async def _aggregate_common_technical_analysis(self, model_results: dict, symbol: str) -> dict:
+        """聚合通用技术分析结果"""
         if not model_results:
             raise Exception("没有分析结果")
         
@@ -249,7 +249,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
             return "# 分析失败\n\n没有可用的分析结果"
         
         report = []
-        report.append("# 实时技术分析报告")
+        report.append("# 通用技术分析报告")
         report.append("")
         
         # 分析摘要
@@ -321,9 +321,9 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         from datetime import datetime
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"realtime_analysis_{symbol}_{timestamp}.md"
+        filename = f"common_technical_analysis_{symbol}_{timestamp}.md"
         
-        output_path = Path(__file__).parent.parent / "logs" / "realtime"
+        output_path = Path(__file__).parent.parent / "logs" / "common_technical"
         output_path.mkdir(parents=True, exist_ok=True)
         
         file_path = output_path / filename
@@ -337,7 +337,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
     @log_exceptions
     async def execute(self, symbol: str, user_message: str = "", additional_instructions: str = "") -> Dict:
         """
-        执行实时分析
+        执行通用技术分析
         
         Args:
             symbol: 交易对
@@ -347,7 +347,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         Returns:
             分析结果
         """
-        self.info("开始实时分析", 
+        self.info("开始通用技术分析", 
                  symbol=symbol, 
                  timeframes=["1h", "4h", "1d"],
                  user_message=user_message[:100] + "..." if len(user_message) > 100 else user_message)
@@ -375,7 +375,7 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         
         # 步骤4: 准备LLM输入数据
         self.info("步骤4: 准备LLM输入数据", symbol=symbol)
-        llm_input = self._prepare_realtime_llm_input(
+        llm_input = self._prepare_common_technical_llm_input(
             symbol,
             market_data,
             indicators,
@@ -389,14 +389,14 @@ class RealTimeAnalysisStrategy(BaseAnalysisStrategy):
         
         # 步骤5: 调用多种模型进行分析
         self.info("步骤5: 调用多种模型进行分析", symbol=symbol)
-        model_results = await self._run_realtime_llm_analysis(llm_input)
+        model_results = await self._run_common_technical_llm_analysis(llm_input)
         self.debug("模型分析完成", 
                   symbol=symbol, 
                   model_count=len(model_results))
         
         # 步骤6: 汇总分析结果
         self.info("步骤6: 汇总分析结果", symbol=symbol)
-        final_analysis = await self._aggregate_realtime_analysis(model_results, symbol)
+        final_analysis = await self._aggregate_common_technical_analysis(model_results, symbol)
         self.info("分析结果汇总完成", 
                   symbol=symbol, 
                   final_model=final_analysis.get('model', 'Unknown'))

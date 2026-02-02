@@ -147,11 +147,11 @@ class BaseAnalysisStrategy(AnalysisStrategy, LoggerMixin):
         
         # 提取策略类型
         # 对于 StandardAnalysisStrategy，提取为 standard
-        # 对于 RealTimeAnalysisStrategy，提取为 realtime
+        # 对于 CommonTechnicalAnalysisStrategy，提取为 common_technical
         if class_name == "StandardAnalysis":
             return "standard"
-        elif class_name == "RealTimeAnalysis":
-            return "realtime"
+        elif class_name == "CommonTechnicalAnalysis":
+            return "common_technical"
         else:
             # 默认返回类名的小写形式
             return class_name.lower()

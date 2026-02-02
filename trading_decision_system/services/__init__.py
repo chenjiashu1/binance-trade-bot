@@ -7,15 +7,14 @@ from .analysis_strategy import (
     AnalysisStrategyFactory,
     BaseAnalysisStrategy,
     StandardAnalysisStrategy,
-    RealTimeAnalysisStrategy
+    CommonTechnicalAnalysisStrategy
 )
-from .integrated_service import IntegratedService
 
 __all__ = [
     'AnalysisStrategy',
     'AnalysisStrategyFactory',
     'BaseAnalysisStrategy',
     'StandardAnalysisStrategy',
-    'RealTimeAnalysisStrategy',
+    'CommonTechnicalAnalysisStrategy',
     'IntegratedService'
 ]

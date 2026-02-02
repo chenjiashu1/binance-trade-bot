@@ -36,13 +36,13 @@ class AnalysisResponse(BaseModel):
     error: Optional[str] = None
 
 
-class RealTimeAnalysisRequest(BaseModel):
+class CommonTechnicalAnalysisRequest(BaseModel):
     symbol: str
     user_message: Optional[str] = ""
     additional_instructions: Optional[str] = ""
 
 
-class RealTimeAnalysisResponse(BaseModel):
+class CommonTechnicalAnalysisResponse(BaseModel):
     success: bool
     message: str
     symbol: str
@@ -99,7 +99,7 @@ async def startup_event():
     try:
         # 预加载策略实例
         await get_strategy("standard")
-        await get_strategy("realtime")
+        await get_strategy("common_technical")
         logger.info("策略实例初始化成功")
     except Exception as e:
         logger.error(f"服务初始化失败: {e}")
@@ -114,12 +114,12 @@ async def root():
         "features": [
             "定时任务 (每5分钟)",
             "API接口触发分析 (方案一)",
-            "实时技术分析 (方案二)"
+            "通用技术分析 (方案二)"
         ],
         "endpoints": [
             "/health - 健康检查",
             "/api/v1/analyze - 触发分析决策 (方案一)",
-            "/api/v1/analyze-realtime - 实时技术分析 (方案二)"
+            "/api/v1/analyze-common-technical - 通用技术分析 (方案二)"
         ]
     }
 
@@ -130,7 +130,7 @@ async def health_check():
     try:
         # 检查策略实例是否可以正常获取
         await get_strategy("standard")
-        await get_strategy("realtime")
+        await get_strategy("common_technical")
         return {
             "status": "healthy",
             "message": "整合服务运行正常",
@@ -204,10 +204,10 @@ async def trigger_analysis(request: AnalysisRequest):
         raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
 
 
-@analysis_router.post("/analyze-realtime", response_model=RealTimeAnalysisResponse)
-async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
+@analysis_router.post("/analyze-common-technical", response_model=CommonTechnicalAnalysisResponse)
+async def trigger_common_technical_analysis(request: CommonTechnicalAnalysisRequest):
     """
-    触发实时技术分析接口（方案二）
+    触发通用技术分析接口（方案二）
     
     Args:
         symbol: 要分析的交易对
@@ -215,14 +215,14 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
         additional_instructions: 额外分析要求
         
     Returns:
-        实时分析结果（包含Markdown报告）
+        通用技术分析结果（包含Markdown报告）
     """
     try:
         from trading_decision_system.utils.logger import setup_logger
         from datetime import datetime, timezone
         
         logger = setup_logger(
-            name="realtime_endpoint",
+            name="common_technical_endpoint",
             log_level="INFO",
             log_file="./trading_decision_system/logs/api.log"
         )
@@ -230,10 +230,10 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
         if not request.symbol:
             raise HTTPException(status_code=400, detail="交易对不能为空")
         
-        logger.info(f"收到实时分析请求: symbol={request.symbol}")
+        logger.info(f"收到通用技术分析请求: symbol={request.symbol}")
         
-        # 获取实时分析策略
-        strategy = await get_strategy("realtime")
+        # 获取通用技术分析策略
+        strategy = await get_strategy("common_technical")
         
         result = await strategy.execute(
             symbol=request.symbol,
@@ -241,9 +241,9 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
             additional_instructions=request.additional_instructions
         )
         
-        return RealTimeAnalysisResponse(
+        return CommonTechnicalAnalysisResponse(
             success=True,
-            message="实时分析完成",
+            message="通用技术分析完成",
             symbol=result['symbol'],
             analysis_time=result['analysis_time'],
             markdown_report=result['markdown_report'],
@@ -255,9 +255,9 @@ async def trigger_realtime_analysis(request: RealTimeAnalysisRequest):
     except Exception as e:
         from datetime import datetime, timezone
         
-        return RealTimeAnalysisResponse(
+        return CommonTechnicalAnalysisResponse(
             success=False,
-            message="实时分析失败",
+            message="通用技术分析失败",
             symbol=request.symbol,
             analysis_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             error=str(e)
